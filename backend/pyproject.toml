@@ -2,7 +2,10 @@
 name = "nimbus-project"
 version = "0.1.0"
 requires-python = ">=3.10"
-dependencies = ["ruff>=0.14.11"]
+dependencies = [
+    "fastapi[standard]>=0.115.0",
+    "ruff>=0.14.11",
+]
 
 [dependency-groups]
 dev = [
