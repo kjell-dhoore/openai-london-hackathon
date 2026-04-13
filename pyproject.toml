@@ -1,0 +1,133 @@
+[project]
+name = "nimbus-project"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = ["ruff>=0.14.11"]
+
+[dependency-groups]
+dev = [
+    "pre-commit==3.5.0",
+    "uv-secure>=0.13.0",
+    "pytest>=8.4.2",
+    "pytest-xdist>=3.8.0",
+    "pytest-env>=1.1.3",
+]
+
+[tool.pytest.ini_options]
+addopts = "-n auto"
+env = [
+    "NIMBUS_NO_ANALYTICS=1",
+]
+
+[tool.uv-secure.vulnerability_criteria]
+ignore_vulnerabilities = ["GHSA-5239-wwwm-4pmq"]
+
+[tool.ruff]
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".ipynb_checkpoints",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pyenv",
+    ".pytest_cache",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    ".vscode",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "site-packages",
+    "venv",
+    "*.ipynb",
+]
+line-length = 100
+indent-width = 4
+
+# Assume Python 3.10
+target-version = "py310"
+
+[tool.ruff.lint]
+select = [
+    "A",     # flake8-builtins
+    "ANN",   # flake8-annotations
+    "ARG",   # flake8-unused-arguments
+    "B",     # flake8-bugbear
+    "BLE",   # flake8-blind-except
+    "C4",    # flake8-comprehensions
+    "COM",   # flake8-commas
+    "DTZ",   # flake8-datetimez
+    "D",     # pydocstyle
+    "E",     # pycodestyle errors
+    "ERA",   # eradicate
+    "F",     # Pyflakes
+    "G",     # flake8-logging-format
+    "I",     # isort
+    "N",     # pep8-naming
+    "PIE",   # flake8-pie
+    "PL",    # Pylint
+    "PTH",   # flake8-use-pathlib
+    "PT",    # flake8-pytest-style
+    "PYI",   # flake8-pyi
+    "Q",     # flake8-quotes
+    "RET",   # flake8-return
+    "RSE",   # flake8-raise
+    "RUF",   # Ruff-specific rules
+    "SIM",   # flake8-simplify
+    "S",     # flake8-bandit
+    "TC",    # flake8-type-checking
+    "TD",    # flake8-todos
+    "TID",   # flake8-tidy-imports
+    "UP",    # pyupgrade
+    "W",     # pycodestyle warnings
+]
+ignore = [
+    "PLR2004", # Magic value used in comparison
+    "COM812",  # Missing trailing comma
+    "D205",  # 1 blank line required between summary line and description
+    "D104",  # Missing docstring in public package
+    "TD002", # Missing author on TODO comment
+    "TD003", # Missing link to issue on TODO comment
+]
+
+# Allow fix for all enabled rules (when `--fix`) is provided.
+fixable = ["ALL"]
+unfixable = []
+
+# Allow unused variables when underscore-prefixed.
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.extend-per-file-ignores]
+# Allow assert in tests
+"**/tests/**/*.py" = ["S101"]
+
+# Ignore import sorting in files generated microservice boilerplate
+"**/app/flask/__init__.py" = ["I001"]
+"**/app/flask/error_handler.py" = ["I001"]
+"**/tests/conftest.py" = ["I001"]
+
+# Ignore subprocess warning in deployment script
+"**/scripts/deploy_endpoints.py" = ["S603"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+
+[tool.ruff.lint.pylint]
+max-args = 8

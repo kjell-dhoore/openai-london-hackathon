@@ -1,0 +1,31 @@
+name: Code linting pipeline
+on: [push]
+jobs:
+  pipeline:
+    name: lint code
+    runs-on: ubuntu-latest
+    steps:
+    - name: checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v6
+      with:
+        version: "0.7.20"
+
+    - name: Set up Python
+      run: uv python install
+
+    - name: pre-commit
+      run: |
+        uv sync --group dev --frozen
+        uv run pre-commit run --all-files
+
+    - name: vulnerability_scan
+      run: |
+        uv sync --all-groups --frozen
+        uv run uv-secure uv.lock
+
+    - name: license_check
+      run: |
+        ./run_license_check.sh --modules-file python-modules
