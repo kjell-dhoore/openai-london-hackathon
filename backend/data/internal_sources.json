@@ -7,24 +7,85 @@
           "id": "conf_error_handling",
           "title": "Service Error Handling Standard",
           "summary": "Defines domain errors, retry boundaries, and safe user-facing messages.",
-          "tags": ["error_handling", "api_design"],
+          "tags": [
+            "error_handling",
+            "api_design"
+          ],
           "artifactPath": "confluence/error-handling-standard.md",
+          "link": null,
           "resourceType": "internal_doc"
         },
         {
           "id": "conf_observability",
           "title": "Observability Playbook",
           "summary": "Explains logging conventions, alert ownership, and escalation paths.",
-          "tags": ["observability", "deployment"],
+          "tags": [
+            "observability",
+            "deployment"
+          ],
           "artifactPath": "confluence/observability-playbook.md",
+          "link": null,
           "resourceType": "internal_doc"
         },
         {
           "id": "conf_architecture_review",
           "title": "Architecture Review Template",
           "summary": "Shows how teams document tradeoffs, constraints, and rollout decisions.",
-          "tags": ["system_design", "api_design"],
+          "tags": [
+            "system_design",
+            "api_design"
+          ],
           "artifactPath": "confluence/architecture-review-template.md",
+          "link": null,
+          "resourceType": "internal_doc"
+        },
+        {
+          "id": "conf_atlas_architecture_review",
+          "title": "Atlas Architecture Review",
+          "summary": "Architecture review notes for Atlas covering system boundaries, tradeoffs, and delivery decisions.",
+          "tags": [
+            "system_design",
+            "api_design"
+          ],
+          "artifactPath": "confluence/atlas-architecture-review.md",
+          "link": null,
+          "resourceType": "internal_doc"
+        },
+        {
+          "id": "conf_helios_deployment_patterns",
+          "title": "Helios Deployment Pattern Docs",
+          "summary": "Deployment guidance for Helios with service boundaries, rollout safety, and ownership expectations.",
+          "tags": [
+            "deployment",
+            "system_design"
+          ],
+          "artifactPath": "confluence/helios-deployment-patterns.md",
+          "link": null,
+          "resourceType": "internal_doc"
+        },
+        {
+          "id": "conf_helios_model_version_metadata",
+          "title": "Helios Deployment Pattern: Model Version Metadata",
+          "summary": "Notes on model-version metadata, checkpoint safety, and the observability signals used during rollout.",
+          "tags": [
+            "deployment",
+            "observability",
+            "error_handling"
+          ],
+          "artifactPath": "confluence/helios-model-version-metadata.md",
+          "link": null,
+          "resourceType": "internal_doc"
+        },
+        {
+          "id": "conf_atlas_lessons_learned",
+          "title": "Atlas Lessons Learned",
+          "summary": "Retrospective from Atlas highlighting explicit risk communication and deliberate delivery tradeoffs.",
+          "tags": [
+            "system_design",
+            "git_collaboration"
+          ],
+          "artifactPath": "confluence/atlas-lessons-learned.md",
+          "link": null,
           "resourceType": "internal_doc"
         }
       ]
@@ -36,16 +97,49 @@
           "id": "gh_pr_feedback_errors",
           "title": "PR Feedback on Async Error Handling",
           "summary": "Review notes call out inconsistent exception mapping in async handlers.",
-          "tags": ["error_handling", "testing"],
+          "tags": [
+            "error_handling",
+            "testing"
+          ],
           "artifactPath": "github/pr-feedback-async-errors.json",
+          "link": null,
           "resourceType": "pr_feedback"
         },
         {
           "id": "gh_pr_feedback_observability",
           "title": "PR Feedback on Missing Metrics",
           "summary": "Recent changes lacked enough metrics to diagnose latency regressions.",
-          "tags": ["observability", "system_design"],
+          "tags": [
+            "observability",
+            "system_design"
+          ],
           "artifactPath": "github/pr-feedback-metrics.json",
+          "link": null,
+          "resourceType": "pr_feedback"
+        },
+        {
+          "id": "gh_pr_feedback_architecture_boundaries",
+          "title": "PR #142 Review: Ranker and Response Formatting",
+          "summary": "Review feedback flags a separation-of-concerns issue between ranking logic and API response formatting.",
+          "tags": [
+            "api_design",
+            "system_design"
+          ],
+          "artifactPath": "github/pr-142-ranker-response-formatting.json",
+          "link": null,
+          "resourceType": "pr_feedback"
+        },
+        {
+          "id": "gh_pr_feedback_checkpoint_metrics",
+          "title": "PR #88 Review: Checkpoint Safety and Metrics",
+          "summary": "Review comments highlight unsafe checkpoint advancement and missing processing metrics in a batch workflow.",
+          "tags": [
+            "observability",
+            "error_handling",
+            "deployment"
+          ],
+          "artifactPath": "github/pr-88-checkpoint-metrics.json",
+          "link": null,
           "resourceType": "pr_feedback"
         }
       ]
@@ -57,16 +151,74 @@
           "id": "drive_release_checklist",
           "title": "Release Readiness Checklist",
           "summary": "Company checklist for deployment confidence, rollout risk, and rollback plans.",
-          "tags": ["deployment", "testing"],
+          "tags": [
+            "deployment",
+            "testing"
+          ],
           "artifactPath": "drive/release-readiness-checklist.docx",
+          "link": null,
           "resourceType": "internal_doc"
         },
         {
           "id": "drive_api_style_guide",
           "title": "API Style Guide",
           "summary": "Guidance on route naming, response shapes, and pagination conventions.",
-          "tags": ["api_design", "system_design"],
+          "tags": [
+            "api_design",
+            "system_design"
+          ],
           "artifactPath": "drive/api-style-guide.docx",
+          "link": null,
+          "resourceType": "internal_doc"
+        },
+        {
+          "id": "drive_service_boundaries_ownership",
+          "title": "Service Boundaries and Ownership Playbook",
+          "summary": "Internal playbook for defining clear service boundaries, responsibilities, and handoff expectations.",
+          "tags": [
+            "system_design",
+            "api_design"
+          ],
+          "artifactPath": "drive/service-boundaries-and-ownership-playbook.docx",
+          "link": null,
+          "resourceType": "internal_doc"
+        },
+        {
+          "id": "drive_service_boundaries_antipatterns",
+          "title": "Service Boundaries Playbook - Anti-patterns",
+          "summary": "Examples of boundary leakage, presentation coupling, and responsibilities that should be split apart.",
+          "tags": [
+            "system_design",
+            "api_design",
+            "error_handling"
+          ],
+          "artifactPath": "drive/service-boundaries-antipatterns.docx",
+          "link": null,
+          "resourceType": "internal_doc"
+        },
+        {
+          "id": "drive_mlops_observability_pipelines",
+          "title": "MLOps Playbook - Observability for Pipelines",
+          "summary": "Guidance on metrics, alerting, rollback checks, and healthy deployment signals for data and ML pipelines.",
+          "tags": [
+            "observability",
+            "deployment",
+            "testing"
+          ],
+          "artifactPath": "drive/mlops-observability-for-pipelines.docx",
+          "link": null,
+          "resourceType": "internal_doc"
+        },
+        {
+          "id": "drive_code_review_guidelines",
+          "title": "Code Review Guidelines",
+          "summary": "Review checklist covering technical rationale, risks, compromises, and collaborative feedback habits.",
+          "tags": [
+            "git_collaboration",
+            "testing"
+          ],
+          "artifactPath": "drive/code-review-guidelines.docx",
+          "link": null,
           "resourceType": "internal_doc"
         }
       ]
@@ -78,16 +230,60 @@
           "id": "coach_growth_reliability",
           "title": "Coaching Note: Reliability Growth",
           "summary": "Highlights observability and production robustness as the next growth step.",
-          "tags": ["observability", "error_handling", "deployment"],
+          "tags": [
+            "observability",
+            "error_handling",
+            "deployment"
+          ],
           "artifactPath": "coaching/reliability-growth-notes.md",
+          "link": null,
           "resourceType": "coaching_note"
         },
         {
           "id": "coach_system_design",
           "title": "Coaching Note: Architectural Communication",
           "summary": "Encourages clearer articulation of tradeoffs and decision quality.",
-          "tags": ["system_design"],
+          "tags": [
+            "system_design"
+          ],
           "artifactPath": "coaching/architectural-communication.md",
+          "link": null,
+          "resourceType": "coaching_note"
+        },
+        {
+          "id": "coach_sanne_design_boundaries",
+          "title": "Mentorship Note - Sanne (Apr 6)",
+          "summary": "Encourages documenting responsibilities, boundaries, and failure cases before implementation.",
+          "tags": [
+            "system_design"
+          ],
+          "artifactPath": "coaching/sanne-apr-6-design-boundaries.md",
+          "link": null,
+          "resourceType": "coaching_note"
+        },
+        {
+          "id": "coach_eline_apr_8_observability",
+          "title": "Coaching note - Eline (Apr 8)",
+          "summary": "Recommends adding observability criteria to the personal implementation checklist and improving failure awareness.",
+          "tags": [
+            "observability",
+            "deployment",
+            "error_handling"
+          ],
+          "artifactPath": "coaching/eline-apr-8-observability.md",
+          "link": null,
+          "resourceType": "coaching_note"
+        },
+        {
+          "id": "coach_sanne_apr_10_communication",
+          "title": "Coaching note - Sanne (Apr 10)",
+          "summary": "Advises explicitly communicating risks, tradeoffs, and deliberate compromises when presenting work.",
+          "tags": [
+            "git_collaboration",
+            "system_design"
+          ],
+          "artifactPath": "coaching/sanne-apr-10-communication.md",
+          "link": null,
           "resourceType": "coaching_note"
         }
       ]
