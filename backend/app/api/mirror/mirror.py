@@ -1,9 +1,8 @@
 """Mirror API router."""
 
-from fastapi import APIRouter
-
 from app.dtos.mirror.mirror import MirrorRequest, MirrorResponse
 from app.services.mirror import mirror as mirror_service
+from fastapi import APIRouter
 
 router = APIRouter()
 

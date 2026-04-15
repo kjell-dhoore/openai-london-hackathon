@@ -22,7 +22,7 @@ export default function TaskDetail() {
           Improve error handling in async services
         </h1>
         <p className="text-muted-foreground mt-2">
-          Implement structured error handling patterns across the notification and payment async services, 
+          Implement structured error handling patterns across the notification and payment async services,
           following the team's established conventions.
         </p>
       </div>
