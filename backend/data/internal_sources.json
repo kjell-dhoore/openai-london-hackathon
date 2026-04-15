@@ -1,0 +1,96 @@
+{
+  "sources": [
+    {
+      "sourceId": "confluence",
+      "documents": [
+        {
+          "id": "conf_error_handling",
+          "title": "Service Error Handling Standard",
+          "summary": "Defines domain errors, retry boundaries, and safe user-facing messages.",
+          "tags": ["error_handling", "api_design"],
+          "artifactPath": "confluence/error-handling-standard.md",
+          "resourceType": "internal_doc"
+        },
+        {
+          "id": "conf_observability",
+          "title": "Observability Playbook",
+          "summary": "Explains logging conventions, alert ownership, and escalation paths.",
+          "tags": ["observability", "deployment"],
+          "artifactPath": "confluence/observability-playbook.md",
+          "resourceType": "internal_doc"
+        },
+        {
+          "id": "conf_architecture_review",
+          "title": "Architecture Review Template",
+          "summary": "Shows how teams document tradeoffs, constraints, and rollout decisions.",
+          "tags": ["system_design", "api_design"],
+          "artifactPath": "confluence/architecture-review-template.md",
+          "resourceType": "internal_doc"
+        }
+      ]
+    },
+    {
+      "sourceId": "github",
+      "documents": [
+        {
+          "id": "gh_pr_feedback_errors",
+          "title": "PR Feedback on Async Error Handling",
+          "summary": "Review notes call out inconsistent exception mapping in async handlers.",
+          "tags": ["error_handling", "testing"],
+          "artifactPath": "github/pr-feedback-async-errors.json",
+          "resourceType": "pr_feedback"
+        },
+        {
+          "id": "gh_pr_feedback_observability",
+          "title": "PR Feedback on Missing Metrics",
+          "summary": "Recent changes lacked enough metrics to diagnose latency regressions.",
+          "tags": ["observability", "system_design"],
+          "artifactPath": "github/pr-feedback-metrics.json",
+          "resourceType": "pr_feedback"
+        }
+      ]
+    },
+    {
+      "sourceId": "google_drive",
+      "documents": [
+        {
+          "id": "drive_release_checklist",
+          "title": "Release Readiness Checklist",
+          "summary": "Company checklist for deployment confidence, rollout risk, and rollback plans.",
+          "tags": ["deployment", "testing"],
+          "artifactPath": "drive/release-readiness-checklist.docx",
+          "resourceType": "internal_doc"
+        },
+        {
+          "id": "drive_api_style_guide",
+          "title": "API Style Guide",
+          "summary": "Guidance on route naming, response shapes, and pagination conventions.",
+          "tags": ["api_design", "system_design"],
+          "artifactPath": "drive/api-style-guide.docx",
+          "resourceType": "internal_doc"
+        }
+      ]
+    },
+    {
+      "sourceId": "coaching_notes",
+      "documents": [
+        {
+          "id": "coach_growth_reliability",
+          "title": "Coaching Note: Reliability Growth",
+          "summary": "Highlights observability and production robustness as the next growth step.",
+          "tags": ["observability", "error_handling", "deployment"],
+          "artifactPath": "coaching/reliability-growth-notes.md",
+          "resourceType": "coaching_note"
+        },
+        {
+          "id": "coach_system_design",
+          "title": "Coaching Note: Architectural Communication",
+          "summary": "Encourages clearer articulation of tradeoffs and decision quality.",
+          "tags": ["system_design"],
+          "artifactPath": "coaching/architectural-communication.md",
+          "resourceType": "coaching_note"
+        }
+      ]
+    }
+  ]
+}
