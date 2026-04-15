@@ -1,82 +1,10 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, Circle, PlayCircle, Clock, ArrowRight, Eye } from "lucide-react";
+import { CheckCircle2, Circle, PlayCircle, Clock, ArrowRight, Eye, Loader2, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
-
-type TaskStatus = "completed" | "current" | "upcoming";
-
-interface Task {
-  id: string;
-  title: string;
-  xp: number;
-  duration: string;
-  status: TaskStatus;
-}
-
-interface GrowthArea {
-  name: string;
-  description: string;
-  tasks: Task[];
-}
-
-const growthAreas: GrowthArea[] = [
-  {
-    name: "Error Handling",
-    description: "Build robust, production-grade error handling patterns",
-    tasks: [
-      { id: "eh1", title: "Review team error handling standards doc", xp: 60, duration: "20 min", status: "completed" },
-      { id: "eh2", title: "Refactor error handling in auth service", xp: 120, duration: "45 min", status: "completed" },
-      { id: "1", title: "Implement structured error handling in async services", xp: 120, duration: "45 min", status: "current" },
-      { id: "eh4", title: "Add error monitoring dashboard alerts", xp: 80, duration: "30 min", status: "upcoming" },
-    ],
-  },
-  {
-    name: "Observability & Logging",
-    description: "Gain visibility into production system behavior",
-    tasks: [
-      { id: "ob1", title: "Study the team's logging conventions", xp: 50, duration: "15 min", status: "completed" },
-      { id: "ob2", title: "Add structured logging to payment service", xp: 100, duration: "40 min", status: "current" },
-      { id: "ob3", title: "Create a runbook for common alerts", xp: 90, duration: "35 min", status: "upcoming" },
-    ],
-  },
-  {
-    name: "API Design Patterns",
-    description: "Design clean, consistent, and maintainable APIs",
-    tasks: [
-      { id: "api1", title: "Read internal API style guide", xp: 40, duration: "15 min", status: "upcoming" },
-      { id: "api2", title: "Redesign user preferences endpoint", xp: 130, duration: "50 min", status: "upcoming" },
-      { id: "api3", title: "Implement pagination in search API", xp: 100, duration: "40 min", status: "upcoming" },
-    ],
-  },
-  {
-    name: "System Design Basics",
-    description: "Understand how systems scale and interact",
-    tasks: [
-      { id: "sd1", title: "Complete system design primer", xp: 80, duration: "30 min", status: "upcoming" },
-      { id: "sd2", title: "Design a caching layer proposal", xp: 150, duration: "60 min", status: "upcoming" },
-    ],
-  },
-  {
-    name: "Public Speaking & Presentations",
-    description: "Build confidence presenting ideas to teams and stakeholders",
-    tasks: [
-      { id: "ps1", title: "Practice a 5-min lightning talk on a recent project", xp: 80, duration: "30 min", status: "completed" },
-      { id: "ps2", title: "Record yourself presenting a design decision", xp: 100, duration: "40 min", status: "current" },
-      { id: "ps3", title: "Lead a team demo session", xp: 130, duration: "45 min", status: "upcoming" },
-      { id: "ps4", title: "Present a technical proposal to leadership", xp: 150, duration: "60 min", status: "upcoming" },
-    ],
-  },
-  {
-    name: "Storytelling & Communication",
-    description: "Communicate impact clearly through writing and narrative",
-    tasks: [
-      { id: "sc1", title: "Write a technical blog post draft", xp: 90, duration: "45 min", status: "upcoming" },
-      { id: "sc2", title: "Structure a project update using STAR format", xp: 70, duration: "25 min", status: "upcoming" },
-      { id: "sc3", title: "Present a post-mortem to stakeholders", xp: 120, duration: "40 min", status: "upcoming" },
-    ],
-  },
-];
+import { useGrowthPlan } from "@/hooks/useGrowthPlan";
+import type { TaskStatus } from "@/types/api";
 
 const statusIcon: Record<TaskStatus, React.ReactNode> = {
   completed: <CheckCircle2 className="h-4 w-4 text-primary" />,
@@ -85,41 +13,67 @@ const statusIcon: Record<TaskStatus, React.ReactNode> = {
 };
 
 export default function GrowthPath() {
+  const { data, isLoading, isError } = useGrowthPlan();
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (isError || !data) {
+    return (
+      <div className="max-w-5xl mx-auto py-12 text-center">
+        <p className="text-muted-foreground">Failed to load growth path. Please try refreshing.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-5xl mx-auto space-y-8 animate-slide-up">
       <div>
         <h1 className="text-2xl font-mono font-bold tracking-tight">Growth Path</h1>
-        <p className="text-muted-foreground mt-1">Your personalized learning journey toward production readiness.</p>
+        <p className="text-muted-foreground mt-1">{data.summary}</p>
       </div>
 
+      {data.whyThisPath && (
+        <Card className="bg-accent/5 border-accent/20">
+          <CardContent className="py-4 flex items-start gap-3">
+            <Sparkles className="h-5 w-5 text-accent mt-0.5 shrink-0" />
+            <p className="text-sm text-foreground">{data.whyThisPath}</p>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="space-y-6">
-        {growthAreas.map((area) => {
-          const completed = area.tasks.filter((t) => t.status === "completed").length;
-          const total = area.tasks.length;
-          const pct = Math.round((completed / total) * 100);
+        {data.themes.map((theme) => {
+          const completed = theme.tasks.filter((t) => t.status === "completed").length;
+          const total = theme.tasks.length;
 
           return (
-            <Card key={area.name}>
+            <Card key={theme.id}>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="text-lg">{area.name}</CardTitle>
-                    <CardDescription>{area.description}</CardDescription>
+                    <CardTitle className="text-lg">{theme.name}</CardTitle>
+                    <CardDescription>{theme.description}</CardDescription>
                   </div>
-                  <Badge variant={pct === 100 ? "default" : "secondary"}>
+                  <Badge variant={theme.progressPercent === 100 ? "default" : "secondary"}>
                     {completed}/{total} tasks
                   </Badge>
                 </div>
                 <div className="h-1.5 w-full rounded-full bg-muted mt-3">
                   <div
                     className="h-full rounded-full bg-gradient-xp transition-all"
-                    style={{ width: `${pct}%` }}
+                    style={{ width: `${theme.progressPercent}%` }}
                   />
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {area.tasks.map((task) => (
+                  {theme.tasks.map((task) => (
                     <div
                       key={task.id}
                       className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${
@@ -138,9 +92,9 @@ export default function GrowthPath() {
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         <span className="text-xs text-muted-foreground flex items-center gap-1">
-                          <Clock className="h-3 w-3" /> {task.duration}
+                          <Clock className="h-3 w-3" /> {task.estimatedDurationMinutes} min
                         </span>
-                        <Badge variant="xp" className="text-[10px]">+{task.xp} XP</Badge>
+                        <Badge variant="xp" className="text-[10px]">+{task.xpReward} XP</Badge>
                         {task.status === "current" && (
                           <Button asChild size="sm" variant="accent" className="ml-2">
                             <Link to={`/task/${task.id}`}>

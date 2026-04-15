@@ -19,37 +19,15 @@ import {
   Loader2,
   ArrowRight,
   Zap,
+  AlertCircle,
 } from "lucide-react";
+import { useSession } from "@/context/SessionContext";
+import { useSubmitProfileIntake, useSubmitQuizResponses } from "@/hooks/useOnboarding";
+import { useGenerateGrowthPlan } from "@/hooks/useGrowthPlan";
+import { useJobPoller } from "@/hooks/useJobs";
+import type { ProfileSummary, QuizResponseType } from "@/types/api";
 
 const STEPS = ["Upload Resume", "Analyzing", "Quick Questions", "Your Profile", "Generating"];
-
-const GENERATION_STAGES = [
-  "Analyzing your skill profile...",
-  "Determining skill gaps and priorities...",
-  "Matching learning resources...",
-  "Building personalized milestones...",
-  "Generating your growth plan...",
-  "Finalizing recommendations...",
-];
-
-const MOCK_SKILLS = [
-  "Python",
-  "Machine Learning",
-  "SQL",
-  "Data Analysis",
-  "REST APIs",
-  "Git",
-  "Docker",
-  "TensorFlow",
-  "Pandas",
-  "Scikit-learn",
-];
-
-const PROCESSING_STAGES = [
-  { label: "Extracting skills from experience", icon: Brain },
-  { label: "Mapping to engineering competencies", icon: Target },
-  { label: "Identifying growth opportunities", icon: Sparkles },
-];
 
 const QUIZ_QUESTIONS = [
   {
@@ -81,147 +59,150 @@ const QUIZ_QUESTIONS = [
   },
 ];
 
-const PROFILE_STRENGTHS = [
-  { name: "Python & Data Analysis", level: 85 },
-  { name: "SQL & Databases", level: 78 },
-  { name: "Machine Learning Fundamentals", level: 72 },
-  { name: "Version Control (Git)", level: 80 },
-];
-
-const PROFILE_GROWTH = [
-  { name: "Production ML Deployment", level: 35 },
-  { name: "System Design", level: 28 },
-  { name: "Observability & Monitoring", level: 20 },
-  { name: "CI/CD Pipelines", level: 32 },
+const PROCESSING_STAGES = [
+  { label: "Extracting skills from experience", icon: Brain },
+  { label: "Mapping to engineering competencies", icon: Target },
+  { label: "Identifying growth opportunities", icon: Sparkles },
 ];
 
 export default function Onboarding() {
   const navigate = useNavigate();
+  const { session, refreshSession } = useSession();
+
   const [step, setStep] = useState(0);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [fileName, setFileName] = useState("");
   const [isDragging, setIsDragging] = useState(false);
-  const [processingStage, setProcessingStage] = useState(0);
-  const [visibleSkills, setVisibleSkills] = useState<string[]>([]);
   const [quizAnswers, setQuizAnswers] = useState<Record<string, number | string>>({});
-  const [generating, setGenerating] = useState(false);
-  const [generationStage, setGenerationStage] = useState(0);
-  const [generationProgress, setGenerationProgress] = useState(0);
-  // Processing animation
+
+  // API mutations
+  const profileIntake = useSubmitProfileIntake();
+  const quizMutation = useSubmitQuizResponses();
+  const growthPlanMutation = useGenerateGrowthPlan();
+
+  // Job polling for profile analysis (step 1)
+  const [profileJobId, setProfileJobId] = useState<string | null>(null);
+  const profileJob = useJobPoller(profileJobId);
+
+  // Job polling for growth plan generation (step 4)
+  const [growthJobId, setGrowthJobId] = useState<string | null>(null);
+  const growthJob = useJobPoller(growthJobId);
+
+  // Profile data returned from quiz submission
+  const [profileData, setProfileData] = useState<ProfileSummary | null>(null);
+
+  // Advance from step 1 (analyzing) when profile job completes
   useEffect(() => {
-    if (step !== 1) return;
-    const stageTimer = setInterval(() => {
-      setProcessingStage((prev) => {
-        if (prev >= PROCESSING_STAGES.length - 1) {
-          clearInterval(stageTimer);
-          return prev;
-        }
-        return prev + 1;
-      });
-    }, 1200);
+    if (profileJob.isCompleted && step === 1) {
+      setStep(2);
+    }
+  }, [profileJob.isCompleted, step]);
 
-    const skillTimers: ReturnType<typeof setTimeout>[] = [];
-    MOCK_SKILLS.forEach((skill, i) => {
-      skillTimers.push(
-        setTimeout(() => {
-          setVisibleSkills((prev) => [...prev, skill]);
-        }, 800 + i * 300)
-      );
-    });
-
-    const advanceTimer = setTimeout(() => setStep(2), 4500);
-
-    return () => {
-      clearInterval(stageTimer);
-      skillTimers.forEach(clearTimeout);
-      clearTimeout(advanceTimer);
-    };
-  }, [step]);
+  // Navigate to dashboard when growth plan job completes
+  useEffect(() => {
+    if (growthJob.isCompleted && step === 4) {
+      refreshSession().then(() => navigate("/"));
+    }
+  }, [growthJob.isCompleted, step, refreshSession, navigate]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
     const file = e.dataTransfer.files[0];
-    if (file) setFileName(file.name);
+    if (file) {
+      setUploadedFile(file);
+      setFileName(file.name);
+    }
   }, []);
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) setFileName(file.name);
+    if (file) {
+      setUploadedFile(file);
+      setFileName(file.name);
+    }
   }, []);
 
-  const handleComplete = () => {
-    localStorage.setItem("onboardingComplete", "true");
-    setGenerating(true);
-    setGenerationStage(0);
-    setGenerationProgress(0);
-    setStep(4);
+  const handleAnalyze = () => {
+    setStep(1);
+    profileIntake.mutate(
+      {
+        file: uploadedFile ?? undefined,
+        fields: {
+          importMode: uploadedFile ? "resume_upload" : fileName === "linkedin-profile.txt" ? "linkedin_import" : "summary_only",
+        },
+      },
+      {
+        onSuccess: (data) => setProfileJobId(data.jobId),
+        onError: () => setStep(0),
+      },
+    );
   };
 
-  // Generation animation
-  useEffect(() => {
-    if (!generating) return;
+  const handleQuizSubmit = (skipped: boolean) => {
+    const responses = skipped
+      ? []
+      : Object.entries(quizAnswers).map(([questionId, value]) => {
+          const q = QUIZ_QUESTIONS.find((qq) => qq.id === questionId);
+          const responseType: QuizResponseType = q?.type === "slider" ? "slider" : "choice";
+          return {
+            questionId,
+            responseType,
+            ...(responseType === "slider"
+              ? { numericValue: value as number }
+              : { optionValue: value as string }),
+          };
+        });
 
-    const totalStages = GENERATION_STAGES.length;
-    const stageInterval = setInterval(() => {
-      setGenerationStage((prev) => {
-        if (prev >= totalStages - 1) {
-          clearInterval(stageInterval);
-          return prev;
-        }
-        return prev + 1;
-      });
-    }, 800);
+    quizMutation.mutate(
+      { skipped, responses },
+      {
+        onSuccess: (profile) => {
+          setProfileData(profile);
+          setStep(3);
+        },
+      },
+    );
+  };
 
-    const progressInterval = setInterval(() => {
-      setGenerationProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(progressInterval);
-          return 100;
-        }
-        return prev + 2;
-      });
-    }, 100);
+  const handleGenerateGrowthPlan = () => {
+    setStep(4);
+    growthPlanMutation.mutate(undefined, {
+      onSuccess: (data) => setGrowthJobId(data.jobId),
+      onError: () => setStep(3),
+    });
+  };
 
-    const navTimer = setTimeout(() => {
-      navigate("/");
-    }, 5500);
-
-    return () => {
-      clearInterval(stageInterval);
-      clearInterval(progressInterval);
-      clearTimeout(navTimer);
-    };
-  }, [generating, navigate]);
-
-  const progressPercent = ((step + 1) / STEPS.length) * 100;
+  const analysisProgress = profileJob.job?.progressPercent ?? 0;
+  const generationProgress = growthJob.job?.progressPercent ?? 0;
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Progress Header */}
       {step < 4 && (
-      <div className="w-full border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="max-w-2xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Zap className="h-5 w-5 text-accent" />
-              <span className="font-semibold text-foreground">SkillPilot</span>
+        <div className="w-full border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
+          <div className="max-w-2xl mx-auto px-6 py-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Zap className="h-5 w-5 text-accent" />
+                <span className="font-semibold text-foreground">SkillPilot</span>
+              </div>
+              <span className="text-sm text-muted-foreground">
+                Step {step + 1} of 4
+              </span>
             </div>
-            <span className="text-sm text-muted-foreground">
-              Step {step + 1} of 4
-            </span>
-          </div>
-          <div className="flex gap-2">
-            {STEPS.slice(0, 4).map((_, i) => (
-              <div
-                key={i}
-                className={`h-1.5 flex-1 rounded-full transition-all duration-500 ${
-                  i <= step ? "bg-gradient-xp" : "bg-secondary"
-                }`}
-              />
-            ))}
+            <div className="flex gap-2">
+              {STEPS.slice(0, 4).map((_, i) => (
+                <div
+                  key={i}
+                  className={`h-1.5 flex-1 rounded-full transition-all duration-500 ${
+                    i <= step ? "bg-gradient-xp" : "bg-secondary"
+                  }`}
+                />
+              ))}
+            </div>
           </div>
         </div>
-      </div>
       )}
 
       {/* Content */}
@@ -240,7 +221,6 @@ export default function Onboarding() {
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                {/* Resume Upload Card */}
                 <Card
                   className={`border-2 border-dashed transition-colors cursor-pointer h-full ${
                     isDragging
@@ -289,14 +269,16 @@ export default function Onboarding() {
                   </CardContent>
                 </Card>
 
-                {/* LinkedIn Import Card */}
                 <Card
                   className={`border-2 border-dashed transition-colors cursor-pointer h-full ${
                     fileName === "linkedin-profile.txt"
                       ? "border-accent/50 bg-accent/5"
                       : "border-border hover:border-accent/40"
                   }`}
-                  onClick={() => setFileName("linkedin-profile.txt")}
+                  onClick={() => {
+                    setUploadedFile(null);
+                    setFileName("linkedin-profile.txt");
+                  }}
                 >
                   <CardContent className="flex flex-col items-center justify-center py-12 gap-4 h-full">
                     <div className="h-14 w-14 rounded-full bg-secondary flex items-center justify-center">
@@ -310,24 +292,30 @@ export default function Onboarding() {
                 </Card>
               </div>
 
+              {profileIntake.isError && (
+                <div className="flex items-center gap-2 text-sm text-destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <span>Failed to submit profile. Please try again.</span>
+                </div>
+              )}
+
               <Button
                 variant="accent"
                 size="lg"
                 className="w-full"
-                disabled={!fileName}
-                onClick={() => {
-                  setProcessingStage(0);
-                  setVisibleSkills([]);
-                  setStep(1);
-                }}
+                disabled={!fileName || profileIntake.isPending}
+                onClick={handleAnalyze}
               >
+                {profileIntake.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : null}
                 Analyze Profile
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </div>
           )}
 
-          {/* Step 1: Processing */}
+          {/* Step 1: Processing / Analyzing */}
           {step === 1 && (
             <div className="animate-fade-in space-y-8">
               <div className="text-center space-y-2">
@@ -335,30 +323,31 @@ export default function Onboarding() {
                   Analyzing your experience
                 </h1>
                 <p className="text-muted-foreground text-lg">
-                  We're identifying your strengths and opportunities
+                  {profileJob.job?.currentStage
+                    ? profileJob.job.currentStage.replace(/_/g, " ")
+                    : "We're identifying your strengths and opportunities"}
                 </p>
               </div>
 
               <Card>
                 <CardContent className="py-8 space-y-6">
+                  <Progress value={analysisProgress} className="h-2" />
                   {PROCESSING_STAGES.map((stage, i) => {
+                    const isActive = analysisProgress > 0 && analysisProgress < 100
+                      ? i === Math.min(Math.floor(analysisProgress / 34), 2)
+                      : false;
+                    const isDone = analysisProgress >= (i + 1) * 34;
                     const Icon = stage.icon;
-                    const isActive = i === processingStage;
-                    const isDone = i < processingStage;
                     return (
                       <div
                         key={i}
                         className={`flex items-center gap-4 transition-opacity duration-500 ${
-                          i > processingStage ? "opacity-30" : "opacity-100"
+                          !isDone && !isActive ? "opacity-30" : "opacity-100"
                         }`}
                       >
                         <div
                           className={`h-10 w-10 rounded-full flex items-center justify-center transition-colors ${
-                            isDone
-                              ? "bg-accent/10"
-                              : isActive
-                              ? "bg-accent/10"
-                              : "bg-secondary"
+                            isDone || isActive ? "bg-accent/10" : "bg-secondary"
                           }`}
                         >
                           {isDone ? (
@@ -371,9 +360,7 @@ export default function Onboarding() {
                         </div>
                         <span
                           className={`font-medium ${
-                            isDone || isActive
-                              ? "text-foreground"
-                              : "text-muted-foreground"
+                            isDone || isActive ? "text-foreground" : "text-muted-foreground"
                           }`}
                         >
                           {stage.label}
@@ -384,22 +371,14 @@ export default function Onboarding() {
                 </CardContent>
               </Card>
 
-              {visibleSkills.length > 0 && (
-                <div className="space-y-3">
-                  <p className="text-sm text-muted-foreground text-center">
-                    Skills detected
+              {profileJob.isFailed && (
+                <div className="text-center space-y-3">
+                  <p className="text-sm text-destructive">
+                    Analysis failed: {profileJob.job?.error?.message ?? "Unknown error"}
                   </p>
-                  <div className="flex flex-wrap gap-2 justify-center">
-                    {visibleSkills.map((skill) => (
-                      <Badge
-                        key={skill}
-                        variant="secondary"
-                        className="animate-fade-in"
-                      >
-                        {skill}
-                      </Badge>
-                    ))}
-                  </div>
+                  <Button variant="outline" onClick={() => { setProfileJobId(null); setStep(0); }}>
+                    Try Again
+                  </Button>
                 </div>
               )}
             </div>
@@ -473,11 +452,19 @@ export default function Onboarding() {
                 ))}
               </div>
 
+              {quizMutation.isError && (
+                <div className="flex items-center gap-2 text-sm text-destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <span>Failed to submit quiz. Please try again.</span>
+                </div>
+              )}
+
               <div className="flex gap-3">
                 <Button
                   variant="ghost"
                   className="text-muted-foreground"
-                  onClick={() => setStep(3)}
+                  disabled={quizMutation.isPending}
+                  onClick={() => handleQuizSubmit(true)}
                 >
                   Skip for now
                 </Button>
@@ -485,8 +472,10 @@ export default function Onboarding() {
                   variant="accent"
                   size="lg"
                   className="flex-1"
-                  onClick={() => setStep(3)}
+                  disabled={quizMutation.isPending}
+                  onClick={() => handleQuizSubmit(false)}
                 >
+                  {quizMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
                   Continue
                   <ChevronRight className="h-4 w-4" />
                 </Button>
@@ -514,22 +503,21 @@ export default function Onboarding() {
                   <CardContent className="py-5 space-y-4">
                     <div className="flex items-center gap-2">
                       <CheckCircle2 className="h-5 w-5 text-accent" />
-                      <h3 className="font-semibold text-foreground">
-                        Strengths
-                      </h3>
+                      <h3 className="font-semibold text-foreground">Strengths</h3>
                     </div>
                     <div className="space-y-3">
-                      {PROFILE_STRENGTHS.map((s) => (
-                        <div key={s.name} className="space-y-1.5">
+                      {(profileData?.strengths ?? []).map((s) => (
+                        <div key={s.id} className="space-y-1.5">
                           <div className="flex justify-between text-sm">
                             <span className="text-foreground">{s.name}</span>
-                            <span className="text-muted-foreground">
-                              {s.level}%
-                            </span>
+                            <span className="text-muted-foreground">{s.levelPercent}%</span>
                           </div>
-                          <Progress value={s.level} className="h-2" />
+                          <Progress value={s.levelPercent} className="h-2" />
                         </div>
                       ))}
+                      {(!profileData || profileData.strengths.length === 0) && (
+                        <p className="text-sm text-muted-foreground">No strengths detected yet.</p>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -538,51 +526,50 @@ export default function Onboarding() {
                   <CardContent className="py-5 space-y-4">
                     <div className="flex items-center gap-2">
                       <Target className="h-5 w-5 text-primary" />
-                      <h3 className="font-semibold text-foreground">
-                        Growth Areas
-                      </h3>
+                      <h3 className="font-semibold text-foreground">Growth Areas</h3>
                     </div>
                     <div className="space-y-3">
-                      {PROFILE_GROWTH.map((g) => (
-                        <div key={g.name} className="space-y-1.5">
+                      {(profileData?.growthAreas ?? []).map((g) => (
+                        <div key={g.id} className="space-y-1.5">
                           <div className="flex justify-between text-sm">
                             <span className="text-foreground">{g.name}</span>
-                            <span className="text-muted-foreground">
-                              {g.level}%
-                            </span>
+                            <span className="text-muted-foreground">{g.levelPercent}%</span>
                           </div>
-                          <Progress value={g.level} className="h-2" />
+                          <Progress value={g.levelPercent} className="h-2" />
                         </div>
                       ))}
+                      {(!profileData || profileData.growthAreas.length === 0) && (
+                        <p className="text-sm text-muted-foreground">No growth areas identified yet.</p>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
               </div>
 
-              <Card className="bg-accent/5 border-accent/20">
-                <CardContent className="py-4 flex items-start gap-3">
-                  <Sparkles className="h-5 w-5 text-accent mt-0.5 shrink-0" />
-                  <p className="text-sm text-foreground">
-                    We'll use this profile to create a personalized growth path
-                    with actionable tasks, curated resources, and progress
-                    tracking tailored to your goals.
-                  </p>
-                </CardContent>
-              </Card>
+              {profileData?.goalDirection && (
+                <Card className="bg-accent/5 border-accent/20">
+                  <CardContent className="py-4 flex items-start gap-3">
+                    <Sparkles className="h-5 w-5 text-accent mt-0.5 shrink-0" />
+                    <p className="text-sm text-foreground">{profileData.goalDirection}</p>
+                  </CardContent>
+                </Card>
+              )}
 
               <Button
                 variant="accent"
                 size="lg"
                 className="w-full"
-                onClick={handleComplete}
+                disabled={growthPlanMutation.isPending}
+                onClick={handleGenerateGrowthPlan}
               >
+                {growthPlanMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
                 Generate My Growth Plan
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </div>
           )}
 
-          {/* Step 4: Generating */}
+          {/* Step 4: Generating Growth Plan */}
           {step === 4 && (
             <div className="animate-fade-in space-y-8">
               <div className="text-center space-y-2">
@@ -590,7 +577,9 @@ export default function Onboarding() {
                   Generating Your Growth Plan
                 </h1>
                 <p className="text-muted-foreground text-lg">
-                  Sit tight — we're building something great for you
+                  {growthJob.job?.currentStage
+                    ? growthJob.job.currentStage.replace(/_/g, " ")
+                    : "Sit tight — we're building something great for you"}
                 </p>
               </div>
 
@@ -598,41 +587,27 @@ export default function Onboarding() {
                 <CardContent className="py-8 space-y-6">
                   <Progress value={generationProgress} className="h-2" />
 
-                  <div className="space-y-4">
-                    {GENERATION_STAGES.map((stage, i) => {
-                      const isActive = i === generationStage;
-                      const isDone = i < generationStage;
-                      return (
-                        <div
-                          key={i}
-                          className={`flex items-center gap-3 transition-opacity duration-500 ${
-                            i > generationStage ? "opacity-30" : "opacity-100"
-                          }`}
-                        >
-                          <div className="h-8 w-8 rounded-full flex items-center justify-center shrink-0">
-                            {isDone ? (
-                              <CheckCircle2 className="h-5 w-5 text-accent" />
-                            ) : isActive ? (
-                              <Loader2 className="h-5 w-5 text-accent animate-spin" />
-                            ) : (
-                              <div className="h-2 w-2 rounded-full bg-muted-foreground/30" />
-                            )}
-                          </div>
-                          <span
-                            className={`text-sm font-medium ${
-                              isDone || isActive
-                                ? "text-foreground"
-                                : "text-muted-foreground"
-                            }`}
-                          >
-                            {stage}
-                          </span>
-                        </div>
-                      );
-                    })}
+                  <div className="flex items-center justify-center gap-3 py-4">
+                    <Loader2 className="h-6 w-6 text-accent animate-spin" />
+                    <span className="text-sm font-medium text-foreground">
+                      {growthJob.job?.currentStage
+                        ? growthJob.job.currentStage.replace(/_/g, " ")
+                        : "Preparing..."}
+                    </span>
                   </div>
                 </CardContent>
               </Card>
+
+              {growthJob.isFailed && (
+                <div className="text-center space-y-3">
+                  <p className="text-sm text-destructive">
+                    Generation failed: {growthJob.job?.error?.message ?? "Unknown error"}
+                  </p>
+                  <Button variant="outline" onClick={() => { setGrowthJobId(null); setStep(3); }}>
+                    Try Again
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </div>
