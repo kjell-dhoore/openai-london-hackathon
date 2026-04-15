@@ -28,6 +28,7 @@ class AgentSkillAssessment(BaseModel):
 class ProfileAnalysisOutput(BaseModel):
     """Structured response expected from the profile-analysis agent."""
 
+    display_name: str
     maturity_snapshot: str
     goal_direction: str
     explanation: str
@@ -67,6 +68,22 @@ class GrowthPlanOutput(BaseModel):
     summary: str
     why_this_path: str
     themes: list[GrowthThemeDraft] = Field(min_length=3, max_length=5)
+
+
+class ExternalResourceResult(BaseModel):
+    """Structured external learning resource returned by the web-search agent."""
+
+    title: str
+    url: str
+    resource_type: str
+    source_id: str
+    rationale: str
+
+
+class ExternalResourceSearchOutput(BaseModel):
+    """Structured response expected from the external-resource discovery agent."""
+
+    resources: list[ExternalResourceResult] = Field(default_factory=list, max_length=4)
 
 
 def _remove_nonessential_schema_keys(schema_node: object) -> None:
@@ -147,6 +164,7 @@ class OpenAIResponsesClient:
         response_model: type[BaseModel],
         schema_name: str,
         max_output_tokens: int = 4000,
+        tools: list[dict[str, object]] | None = None,
     ) -> BaseModel:
         """Call the OpenAI Responses API and validate the structured JSON output."""
         payload = {
@@ -173,6 +191,8 @@ class OpenAIResponsesClient:
                 }
             },
         }
+        if tools:
+            payload["tools"] = tools
         raw_response = self._post(payload)
         output_text = self._extract_output_text(raw_response)
         return response_model.model_validate_json(output_text)
@@ -274,3 +294,20 @@ class SkillPilotPromptAgents:
             max_output_tokens=5000,
         )
         return GrowthPlanOutput.model_validate(response)
+
+    def discover_external_resources(
+        self,
+        prompt_context: dict[str, object],
+    ) -> ExternalResourceSearchOutput:
+        """Run the external-resource discovery agent with live web search."""
+        instructions = self._renderer.render("resource_discovery_system.jinja")
+        user_prompt = self._renderer.render("resource_discovery_user.jinja", **prompt_context)
+        response = self._client.generate_structured_output(
+            instructions=instructions,
+            user_prompt=user_prompt,
+            response_model=ExternalResourceSearchOutput,
+            schema_name="skillpilot_external_resource_search",
+            max_output_tokens=2500,
+            tools=[{"type": "web_search"}],
+        )
+        return ExternalResourceSearchOutput.model_validate(response)

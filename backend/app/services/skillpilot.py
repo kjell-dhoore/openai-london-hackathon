@@ -2,6 +2,7 @@
 
 import json
 import logging
+import re
 from collections.abc import Iterable
 from datetime import datetime, timezone
 from typing import Any
@@ -90,6 +91,38 @@ def _clamp(value: float, lower: int, upper: int) -> int:
 def json_dumps(payload: object) -> str:
     """Serialize prompt context into stable pretty JSON."""
     return json.dumps(payload, indent=2, sort_keys=True)
+
+
+def _is_placeholder_display_name(value: str | None) -> bool:
+    """Return whether a display name is a known placeholder."""
+    if value is None:
+        return True
+    return value.strip().lower() in {"", "user", "learner"}
+
+
+def _extract_display_name(intake: ProfileIntakePayload, fallback: str) -> str:
+    """Extract a likely learner name from resume text or summary content."""
+    candidate_texts = [intake.resume_text, intake.professional_summary]
+    for text in candidate_texts:
+        if not text:
+            continue
+        for raw_line in text.splitlines()[:8]:
+            line = raw_line.strip()
+            if not line or len(line) > 60:
+                continue
+            if any(char.isdigit() for char in line):
+                continue
+            if "@" in line or "http" in line.lower() or "linkedin" in line.lower():
+                continue
+            if any(token.lower() in line.lower() for token in ["resume", "curriculum", "engineer"]):
+                continue
+            if re.fullmatch(
+                r"[A-Z][a-z]+(?:[-'][A-Z][a-z]+)?"
+                r"(?:\s+[A-Z][a-z]+(?:[-'][A-Z][a-z]+)?){1,3}",
+                line,
+            ):
+                return line
+    return fallback
 
 
 def _normalize_text(parts: Iterable[str | None]) -> str:
@@ -262,9 +295,10 @@ class _IngestionAgent:
             "sources, and the capabilities expected by your target role."
         )
         missing_information = self._missing_information(intake, quiz_responses)
+        extracted_display_name = _extract_display_name(intake, session.display_name)
         profile = ProfileSummary(
             profile_id=_generate_identifier("profile"),
-            display_name=session.display_name,
+            display_name=extracted_display_name,
             current_role=intake.current_role,
             target_role=intake.target_role,
             years_of_experience=intake.years_of_experience,
@@ -361,7 +395,11 @@ class _IngestionAgent:
 
         profile = ProfileSummary(
             profile_id=_generate_identifier("profile"),
-            display_name=session.display_name,
+            display_name=(
+                llm_output.display_name.strip()
+                if not _is_placeholder_display_name(llm_output.display_name)
+                else _extract_display_name(intake, session.display_name)
+            ),
             current_role=intake.current_role,
             target_role=intake.target_role,
             years_of_experience=intake.years_of_experience,
@@ -468,6 +506,7 @@ class _IngestionAgent:
 
     def collect_resources(
         self,
+        session: StoredSession,
         skill_id: str,
         selected_sources: list[SourceSelection],
         preferences: Preferences,
@@ -504,6 +543,30 @@ class _IngestionAgent:
 
         learning_style = preferences.learning_style
         sorted_external_ids = self._sort_external_sources(enabled_source_ids, learning_style)
+        prompt_agents = self._prompt_agents
+        if (
+            self._settings.llm_mode == "openai"
+            and prompt_agents is not None
+            and sorted_external_ids
+            and session.profile is not None
+            and session.intake is not None
+        ):
+            try:
+                resources.extend(
+                    self._discover_external_resources_with_llm(
+                        session=session,
+                        skill_id=skill_id,
+                        sorted_external_ids=sorted_external_ids,
+                        preferences=preferences,
+                        prompt_agents=prompt_agents,
+                    )
+                )
+            except (KeyError, TypeError, ValueError, LlmAgentError) as exc:  # pragma: no cover
+                logger.warning(
+                    "OpenAI resource discovery failed; falling back to static external resources.",
+                    exc_info=exc,
+                )
+
         for source_id in sorted_external_ids:
             resource = self._build_external_resource(
                 skill_id=skill_id,
@@ -511,9 +574,89 @@ class _IngestionAgent:
                 query=theme_query,
             )
             if resource is not None:
+                if any(
+                    existing.url == resource.url and existing.source_id == resource.source_id
+                    for existing in resources
+                ):
+                    continue
                 resources.append(resource)
 
         return resources[:6]
+
+    def _discover_external_resources_with_llm(
+        self,
+        *,
+        session: StoredSession,
+        skill_id: str,
+        sorted_external_ids: list[str],
+        preferences: Preferences,
+        prompt_agents: SkillPilotPromptAgents,
+    ) -> list[LearningResource]:
+        if session.profile is None or session.intake is None:
+            raise ValueError("Cannot discover resources before a profile exists.")
+
+        allowed_external_sources = [
+            source.model_dump(mode="json")
+            for source in session.selected_sources
+            if source.id in sorted_external_ids
+        ]
+        llm_output = prompt_agents.discover_external_resources(
+            {
+                "skill_json": json_dumps(
+                    {
+                        "skill_id": skill_id,
+                        "skill_name": SKILL_LIBRARY[skill_id]["name"],
+                        "skill_category": SKILL_LIBRARY[skill_id]["category"],
+                    }
+                ),
+                "session_json": json_dumps(session.to_summary().model_dump(mode="json")),
+                "intake_json": json_dumps(session.intake.model_dump(mode="json")),
+                "profile_json": json_dumps(session.profile.model_dump(mode="json")),
+                "preferences_json": json_dumps(preferences.model_dump(mode="json")),
+                "allowed_external_sources_json": json_dumps(allowed_external_sources),
+                "search_hints_json": json_dumps(
+                    {
+                        "query": THEME_TEMPLATES[skill_id]["search_query"],
+                        "learning_style": preferences.learning_style.value,
+                        "target_role": session.intake.target_role,
+                        "current_focus": session.intake.current_focus,
+                    }
+                ),
+            }
+        )
+        materialized: list[LearningResource] = []
+        allowed_source_ids = set(sorted_external_ids)
+        allowed_resource_types = {
+            ResourceType.OFFICIAL_DOC.value,
+            ResourceType.BLOG.value,
+            ResourceType.VIDEO.value,
+            ResourceType.PAPER.value,
+            ResourceType.SEARCH_RESULT.value,
+        }
+        for result in llm_output.resources:
+            if (
+                result.source_id not in allowed_source_ids
+                or result.resource_type not in allowed_resource_types
+            ):
+                continue
+
+            source_definition = self._catalog_by_id.get(result.source_id)
+            if source_definition is None:
+                continue
+
+            materialized.append(
+                LearningResource(
+                    id=_generate_identifier("res"),
+                    title=result.title,
+                    resource_type=ResourceType(result.resource_type),
+                    source_id=result.source_id,
+                    source_category=SourceCategory.EXTERNAL,
+                    integration_mode=source_definition.integration_mode,
+                    url=result.url,
+                    rationale=result.rationale,
+                )
+            )
+        return materialized
 
     def _build_evidence(
         self,
@@ -1035,6 +1178,7 @@ class _Orchestrator:
             )
             session = self._require_session(session_id)
             profile, skill_profile = self._ingestion_agent.build_profile(session)
+            session.display_name = profile.display_name
             session.profile = profile
             session.skill_profile = skill_profile
             session.profile_ready = True
@@ -1079,6 +1223,7 @@ class _Orchestrator:
 
             resources_by_skill = {
                 rating.id: self._ingestion_agent.collect_resources(
+                    session=session,
                     skill_id=rating.id,
                     selected_sources=session.selected_sources,
                     preferences=session.preferences,
@@ -1334,6 +1479,7 @@ class SkillPilotService:
             )
 
         profile, skill_profile = self._ingestion_agent.build_profile(session, request.responses)
+        session.display_name = profile.display_name
         session.profile = profile
         session.skill_profile = skill_profile
         session.profile_ready = True

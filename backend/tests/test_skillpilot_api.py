@@ -172,3 +172,49 @@ def test_multipart_profile_intake_is_supported() -> None:
     profile_response = client.get(f"/v1/sessions/{session_id}/profile")
     assert profile_response.status_code == 200
     assert profile_response.json()["displayName"] == "Morgan"
+
+
+def test_resume_name_is_extracted_and_persisted_to_the_session() -> None:
+    """Resume uploads should update the session display name when a real name is present."""
+    client = _build_client()
+
+    create_session_response = client.post("/v1/sessions", json={})
+    assert create_session_response.status_code == 201
+    session_id = create_session_response.json()["sessionId"]
+
+    multipart_response = client.post(
+        f"/v1/sessions/{session_id}/profile-intake",
+        data={
+            "importMode": "resume_upload",
+            "jobDescriptionText": "Need stronger backend reliability and observability.",
+            "currentRole": "Software Engineer",
+            "yearsOfExperience": "4",
+            "targetRole": "Platform Engineer",
+            "currentFocus": "Production systems",
+        },
+        files={
+            "resumeFile": (
+                "resume.txt",
+                (
+                    b"Jordan Smith\n"
+                    b"Software Engineer\n"
+                    b"Python FastAPI APIs pytest SQL GitHub Docker observability experience"
+                ),
+                "text/plain",
+            )
+        },
+    )
+    assert multipart_response.status_code == 202
+
+    job_id = multipart_response.json()["jobId"]
+    job_response = client.get(f"/v1/jobs/{job_id}")
+    assert job_response.status_code == 200
+    assert job_response.json()["status"] == "completed"
+
+    session_response = client.get(f"/v1/sessions/{session_id}")
+    assert session_response.status_code == 200
+    assert session_response.json()["displayName"] == "Jordan Smith"
+
+    profile_response = client.get(f"/v1/sessions/{session_id}/profile")
+    assert profile_response.status_code == 200
+    assert profile_response.json()["displayName"] == "Jordan Smith"

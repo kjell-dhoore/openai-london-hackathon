@@ -48,7 +48,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       }
 
       const created = await api.createSession({
-        displayName: "User",
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       });
       localStorage.setItem(STORAGE_KEY, created.sessionId);

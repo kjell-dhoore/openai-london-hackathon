@@ -4,29 +4,45 @@ import path from "path";
 import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }) => ({
-  server: {
-    host: "::",
-    port: 8080,
-    hmr: {
-      overlay: false,
+export default defineConfig(({ mode }) => {
+  const proxy = {
+    "/v1": {
+      target: "http://localhost:8000",
+      changeOrigin: true,
     },
-    proxy: {
-      "/v1": {
-        target: "http://localhost:8000",
-        changeOrigin: true,
+    "/health": {
+      target: "http://localhost:8000",
+      changeOrigin: true,
+    },
+  };
+
+  return {
+    server: {
+      host: "::",
+      port: 8080,
+      hmr: {
+        overlay: false,
       },
-      "/health": {
-        target: "http://localhost:8000",
-        changeOrigin: true,
+      proxy,
+    },
+    preview: {
+      host: "::",
+      port: 4173,
+      proxy,
+    },
+    plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
+    resolve: {
+      alias: {
+        "@": path.resolve(__dirname, "./src"),
       },
+      dedupe: [
+        "react",
+        "react-dom",
+        "react/jsx-runtime",
+        "react/jsx-dev-runtime",
+        "@tanstack/react-query",
+        "@tanstack/query-core",
+      ],
     },
-  },
-  plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
-    },
-    dedupe: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime", "@tanstack/react-query", "@tanstack/query-core"],
-  },
-}));
+  };
+});

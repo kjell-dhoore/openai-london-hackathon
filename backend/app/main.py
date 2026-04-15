@@ -7,6 +7,7 @@ from app.config import Settings
 from app.services.skillpilot import SkillPilotService
 from app.store import JsonStore
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -19,6 +20,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     service = SkillPilotService(settings=resolved_settings, store=store)
 
     app = FastAPI(title=resolved_settings.project_name, version="0.1.0")
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[
+            "http://localhost:8080",
+            "http://127.0.0.1:8080",
+            "http://localhost:4173",
+            "http://127.0.0.1:4173",
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+        ],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
     app.state.settings = resolved_settings
     app.state.skillpilot_service = service
     app.include_router(skillpilot_router)
