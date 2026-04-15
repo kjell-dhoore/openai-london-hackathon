@@ -1,8 +1,7 @@
 """FastAPI application setup."""
 
-from fastapi import FastAPI
-
 from app.api.mirror.mirror import router as mirror_router
+from fastapi import FastAPI
 
 app = FastAPI()
 

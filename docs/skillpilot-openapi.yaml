@@ -1,0 +1,1101 @@
+openapi: 3.0.3
+info:
+  title: SkillPilot API Contract
+  version: 0.1.0
+  summary: First-pass frontend/backend contract for the SkillPilot hackathon MVP.
+  description: |
+    This contract is derived from the end-to-end flow specification, the current Lovable frontend,
+    and the onboarding sketch. It is intentionally session-centric so frontend and backend teams can
+    build independently against stable resources and asynchronous generation flows.
+
+    Contract assumptions for this MVP:
+    - The backend persists user session state in a local JSON file.
+    - Internal knowledge sources are mocked and read from local JSON fixtures.
+    - External knowledge sources are real integrations reached through MCP-backed connectors or
+      equivalent live integration clients.
+    - Agentic internals stay behind the API boundary: the backend exposes jobs and read models,
+      while the Orchestrator, Ingestion Agent, and Growth Plan Agent remain implementation details.
+servers:
+  - url: http://localhost:8000
+    description: Local backend development server
+tags:
+  - name: Health
+  - name: Sessions
+  - name: Onboarding
+  - name: Sources
+  - name: Preferences
+  - name: Jobs
+  - name: Dashboard
+  - name: Skill Profile
+  - name: Growth Plan
+  - name: Tasks
+paths:
+  /health:
+    get:
+      tags: [Health]
+      operationId: healthCheck
+      summary: Health check endpoint.
+      responses:
+        "200":
+          description: Backend is healthy.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /v1/sessions:
+    post:
+      tags: [Sessions]
+      operationId: createSession
+      summary: Create a new SkillPilot session.
+      description: |
+        Creates a new persisted user session and returns enough bootstrap state for the frontend
+        to decide whether to keep the user on onboarding or continue into the application shell.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SessionCreateRequest"
+      responses:
+        "201":
+          description: Session created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionSummary"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+  /v1/sessions/{sessionId}:
+    get:
+      tags: [Sessions]
+      operationId: getSession
+      summary: Get the current persisted session snapshot.
+      parameters:
+        - $ref: "#/components/parameters/SessionId"
+      responses:
+        "200":
+          description: Session snapshot returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionSummary"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /v1/sessions/{sessionId}/profile-intake:
+    post:
+      tags: [Onboarding]
+      operationId: submitProfileIntake
+      summary: Submit onboarding intake inputs and start learner profile analysis.
+      description: |
+        Accepts the user resume, job description, and structured onboarding fields. The backend
+        creates an asynchronous profile-analysis job so the frontend can show staged progress while
+        the Orchestrator extracts signals and prepares the first learner profile.
+      parameters:
+        - $ref: "#/components/parameters/SessionId"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/ProfileIntakeMultipart"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfileIntakeJson"
+      responses:
+        "202":
+          description: Profile analysis accepted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AsyncJobAccepted"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /v1/sessions/{sessionId}/quiz-responses:
+    post:
+      tags: [Onboarding]
+      operationId: submitQuizResponses
+      summary: Submit adaptive quiz responses and refine the learner profile.
+      parameters:
+        - $ref: "#/components/parameters/SessionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QuizSubmissionRequest"
+      responses:
+        "200":
+          description: Learner profile refined using quiz answers.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfileSummary"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /v1/sessions/{sessionId}/profile:
+    get:
+      tags: [Onboarding]
+      operationId: getProfileSummary
+      summary: Get the generated learner profile summary.
+      parameters:
+        - $ref: "#/components/parameters/SessionId"
+      responses:
+        "200":
+          description: Learner profile summary returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfileSummary"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /v1/sources/catalog:
+    get:
+      tags: [Sources]
+      operationId: getSourceCatalog
+      summary: List all available internal and external sources.
+      description: |
+        Internal sources are mocked for the MVP and backed by local JSON fixtures. External sources
+        are live integrations and should return real metadata that can be used for recommendations.
+      responses:
+        "200":
+          description: Source catalog returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SourceCatalogResponse"
+  /v1/sessions/{sessionId}/sources:
+    get:
+      tags: [Sources]
+      operationId: getSelectedSources
+      summary: Get the source selection state for the session.
+      parameters:
+        - $ref: "#/components/parameters/SessionId"
+      responses:
+        "200":
+          description: Session source preferences returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SourceSelectionState"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags: [Sources]
+      operationId: updateSelectedSources
+      summary: Enable or disable sources for profile analysis and recommendations.
+      parameters:
+        - $ref: "#/components/parameters/SessionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SourceSelectionRequest"
+      responses:
+        "200":
+          description: Source selection updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SourceSelectionState"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /v1/sessions/{sessionId}/preferences:
+    get:
+      tags: [Preferences]
+      operationId: getPreferences
+      summary: Get the learning and recommendation preferences for the session.
+      parameters:
+        - $ref: "#/components/parameters/SessionId"
+      responses:
+        "200":
+          description: Preferences returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Preferences"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags: [Preferences]
+      operationId: updatePreferences
+      summary: Update learning style, goals, and cadence preferences.
+      parameters:
+        - $ref: "#/components/parameters/SessionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PreferencesUpdateRequest"
+      responses:
+        "200":
+          description: Preferences updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Preferences"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /v1/sessions/{sessionId}/growth-plan/generate:
+    post:
+      tags: [Growth Plan]
+      operationId: generateGrowthPlan
+      summary: Start asynchronous growth-plan generation.
+      description: |
+        The backend Orchestrator loads the learner profile, selected sources, and preferences; uses
+        the Ingestion Agent to gather evidence and resources; then asks the Growth Plan Agent to
+        create prioritized themes, tasks, and explanations.
+      parameters:
+        - $ref: "#/components/parameters/SessionId"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GrowthPlanGenerateRequest"
+      responses:
+        "202":
+          description: Growth-plan generation accepted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AsyncJobAccepted"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /v1/jobs/{jobId}:
+    get:
+      tags: [Jobs]
+      operationId: getJobStatus
+      summary: Poll an asynchronous profile-analysis or growth-plan job.
+      parameters:
+        - $ref: "#/components/parameters/JobId"
+      responses:
+        "200":
+          description: Job status returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobStatus"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /v1/sessions/{sessionId}/dashboard:
+    get:
+      tags: [Dashboard]
+      operationId: getDashboard
+      summary: Get the dashboard read model for a returning user.
+      parameters:
+        - $ref: "#/components/parameters/SessionId"
+      responses:
+        "200":
+          description: Dashboard payload returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardView"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /v1/sessions/{sessionId}/skill-profile:
+    get:
+      tags: [Skill Profile]
+      operationId: getSkillProfile
+      summary: Get the detailed skill profile view with evidence and target-role gaps.
+      parameters:
+        - $ref: "#/components/parameters/SessionId"
+      responses:
+        "200":
+          description: Skill profile returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SkillProfileView"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /v1/sessions/{sessionId}/growth-plan:
+    get:
+      tags: [Growth Plan]
+      operationId: getGrowthPlan
+      summary: Get the current personalized growth plan.
+      parameters:
+        - $ref: "#/components/parameters/SessionId"
+      responses:
+        "200":
+          description: Growth plan returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GrowthPlan"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /v1/sessions/{sessionId}/tasks/{taskId}:
+    get:
+      tags: [Tasks]
+      operationId: getTaskDetail
+      summary: Get a recommended task with rationale, outcomes, and resources.
+      parameters:
+        - $ref: "#/components/parameters/SessionId"
+        - $ref: "#/components/parameters/TaskId"
+      responses:
+        "200":
+          description: Task detail returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskDetail"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /v1/sessions/{sessionId}/tasks/{taskId}/complete:
+    post:
+      tags: [Tasks]
+      operationId: completeTask
+      summary: Mark a task complete and update XP, streak, and next action.
+      parameters:
+        - $ref: "#/components/parameters/SessionId"
+        - $ref: "#/components/parameters/TaskId"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskCompletionRequest"
+      responses:
+        "200":
+          description: Task completion applied.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskCompletionResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+components:
+  parameters:
+    SessionId:
+      name: sessionId
+      in: path
+      required: true
+      description: Stable identifier for the locally persisted user session.
+      schema:
+        type: string
+        example: sess_01HZYQ8M1PBRM4N4H4W2VBKXAA
+    JobId:
+      name: jobId
+      in: path
+      required: true
+      schema:
+        type: string
+        example: job_01HZYQ8VQ2QJVKQ1TVJ1YV99M2
+    TaskId:
+      name: taskId
+      in: path
+      required: true
+      schema:
+        type: string
+        example: task_observability_002
+  responses:
+    BadRequest:
+      description: Request payload failed validation.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Resource not found.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+  schemas:
+    HealthStatus:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          example: ok
+    SessionCreateRequest:
+      type: object
+      properties:
+        displayName:
+          type: string
+          example: Alex
+        locale:
+          type: string
+          example: en-GB
+        timezone:
+          type: string
+          example: Europe/Brussels
+    SessionSummary:
+      type: object
+      required:
+        [sessionId, status, onboardingComplete, profileReady, growthPlanReady, recommendedRoute]
+      properties:
+        sessionId:
+          type: string
+        status:
+          type: string
+          enum: [new, onboarding_in_progress, profile_ready, growth_plan_ready]
+        onboardingComplete:
+          type: boolean
+        profileReady:
+          type: boolean
+        growthPlanReady:
+          type: boolean
+        recommendedRoute:
+          type: string
+          enum:
+            - "/onboarding"
+            - "/sources"
+            - "/preferences"
+            - "/growth"
+            - "/task/{taskId}"
+            - "/dashboard"
+        displayName:
+          type: string
+          example: Alex
+        currentLevel:
+          type: integer
+          minimum: 1
+          example: 4
+        totalXp:
+          type: integer
+          minimum: 0
+          example: 2450
+        activeTaskId:
+          type: string
+          example: task_error_handling_003
+        updatedAt:
+          type: string
+          format: date-time
+    ProfileIntakeMultipart:
+      type: object
+      description: |
+        At least one of `resumeFile`, `resumeText`, `linkedinProfileUrl`, or `professionalSummary`
+        should be provided. `jobDescriptionText` is strongly recommended because the flow and sketch
+        both use it as a primary signal for gap analysis.
+      properties:
+        importMode:
+          type: string
+          enum: [resume_upload, pasted_text, linkedin_import, summary_only]
+        resumeFile:
+          type: string
+          format: binary
+        resumeText:
+          type: string
+        linkedinProfileUrl:
+          type: string
+          format: uri
+        professionalSummary:
+          type: string
+        jobDescriptionText:
+          type: string
+        currentRole:
+          type: string
+        yearsOfExperience:
+          type: number
+          format: float
+        targetRole:
+          type: string
+        currentFocus:
+          type: string
+    ProfileIntakeJson:
+      type: object
+      properties:
+        importMode:
+          type: string
+          enum: [pasted_text, linkedin_import, summary_only]
+        resumeText:
+          type: string
+        linkedinProfileUrl:
+          type: string
+          format: uri
+        professionalSummary:
+          type: string
+        jobDescriptionText:
+          type: string
+        currentRole:
+          type: string
+        yearsOfExperience:
+          type: number
+          format: float
+        targetRole:
+          type: string
+        currentFocus:
+          type: string
+    AsyncJobAccepted:
+      type: object
+      required: [jobId, sessionId, jobType, status, pollUrl]
+      properties:
+        jobId:
+          type: string
+        sessionId:
+          type: string
+        jobType:
+          type: string
+          enum: [profile_analysis, growth_plan_generation]
+        status:
+          type: string
+          enum: [queued, running]
+        currentStage:
+          type: string
+          example: extracting_skills
+        progressPercent:
+          type: integer
+          minimum: 0
+          maximum: 100
+          example: 12
+        pollUrl:
+          type: string
+          example: /v1/jobs/job_01HZYQ8VQ2QJVKQ1TVJ1YV99M2
+    JobStatus:
+      type: object
+      required: [jobId, sessionId, jobType, status, createdAt, updatedAt]
+      properties:
+        jobId:
+          type: string
+        sessionId:
+          type: string
+        jobType:
+          type: string
+          enum: [profile_analysis, growth_plan_generation]
+        status:
+          type: string
+          enum: [queued, running, completed, failed]
+        currentStage:
+          type: string
+          example: matching_learning_resources
+        progressPercent:
+          type: integer
+          minimum: 0
+          maximum: 100
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        result:
+          $ref: "#/components/schemas/JobResult"
+        error:
+          $ref: "#/components/schemas/JobError"
+    JobResult:
+      type: object
+      properties:
+        profileId:
+          type: string
+          example: profile_01HZYQ9BFCY5N56A9XWZSAJ7CV
+        growthPlanId:
+          type: string
+          example: gp_01HZYQ9F0BVW4QMBVNZ6S0P9N8
+        recommendedRoute:
+          type: string
+          example: /dashboard
+    JobError:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          example: SOURCE_TIMEOUT
+        message:
+          type: string
+          example: External resource search timed out before ranking completed.
+    QuizSubmissionRequest:
+      type: object
+      required: [responses]
+      properties:
+        skipped:
+          type: boolean
+          default: false
+        responses:
+          type: array
+          items:
+            $ref: "#/components/schemas/QuizResponse"
+    QuizResponse:
+      type: object
+      required: [questionId, responseType]
+      properties:
+        questionId:
+          type: string
+          example: ml-deploy
+        responseType:
+          type: string
+          enum: [slider, choice, free_text]
+        numericValue:
+          type: number
+          format: float
+          example: 72
+        optionValue:
+          type: string
+          example: Weekly
+        textValue:
+          type: string
+    ProfileSummary:
+      type: object
+      required:
+        [profileId, displayName, strengths, growthAreas, maturitySnapshot, goalDirection]
+      properties:
+        profileId:
+          type: string
+        displayName:
+          type: string
+          example: Alex
+        currentRole:
+          type: string
+          example: Junior ML Engineer
+        targetRole:
+          type: string
+          example: Mid-Level Backend Engineer
+        yearsOfExperience:
+          type: number
+          format: float
+          example: 2.5
+        currentFocus:
+          type: string
+          example: Production readiness
+        maturitySnapshot:
+          type: string
+          example: Strong implementation ability with emerging system design maturity.
+        goalDirection:
+          type: string
+          example: Move from junior ML engineer toward a more autonomous delivery profile.
+        explanation:
+          type: string
+          example: Recommendations are based on your profile inputs, quiz answers, source selections, and target role.
+        missingInformation:
+          type: array
+          items:
+            type: string
+          example: [deployment_experience, learning_style]
+        strengths:
+          type: array
+          items:
+            $ref: "#/components/schemas/SkillRating"
+        growthAreas:
+          type: array
+          items:
+            $ref: "#/components/schemas/SkillRating"
+    SkillRating:
+      type: object
+      required: [id, name, levelPercent, band, confidence]
+      properties:
+        id:
+          type: string
+          example: observability
+        name:
+          type: string
+          example: Observability
+        category:
+          type: string
+          example: backend_engineering
+        levelPercent:
+          type: integer
+          minimum: 0
+          maximum: 100
+        band:
+          type: string
+          enum: [emerging, developing, strong, advanced]
+        confidence:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          example: 0.78
+        priority:
+          type: string
+          enum: [low, medium, high]
+        evidence:
+          type: array
+          items:
+            $ref: "#/components/schemas/SkillEvidence"
+    SkillEvidence:
+      type: object
+      required: [sourceId, sourceCategory, title, summary]
+      properties:
+        sourceId:
+          type: string
+          example: github
+        sourceCategory:
+          type: string
+          enum: [internal, external, self_reported]
+        title:
+          type: string
+          example: PR feedback on notification-service
+        summary:
+          type: string
+          example: Review comments repeatedly called out missing structured error boundaries.
+        link:
+          type: string
+          format: uri
+    SourceCatalogResponse:
+      type: object
+      required: [sources]
+      properties:
+        sources:
+          type: array
+          items:
+            $ref: "#/components/schemas/SourceDefinition"
+    SourceDefinition:
+      type: object
+      required:
+        [id, name, category, integrationMode, isMocked, enabledByDefault, capabilities]
+      properties:
+        id:
+          type: string
+          example: youtube
+        name:
+          type: string
+          example: YouTube
+        category:
+          type: string
+          enum: [internal, external]
+        integrationMode:
+          type: string
+          enum: [local_json, mcp_connector, http_api]
+        isMocked:
+          type: boolean
+        enabledByDefault:
+          type: boolean
+        description:
+          type: string
+        capabilities:
+          type: array
+          items:
+            type: string
+            enum: [profile_analysis, recommendation_generation, evidence_lookup, learning_resources]
+        status:
+          type: string
+          enum: [available, coming_soon]
+    SourceSelectionRequest:
+      type: object
+      required: [sources]
+      properties:
+        sources:
+          type: array
+          items:
+            $ref: "#/components/schemas/SourceSelection"
+    SourceSelectionState:
+      type: object
+      required: [sessionId, sources]
+      properties:
+        sessionId:
+          type: string
+        sources:
+          type: array
+          items:
+            $ref: "#/components/schemas/SourceSelection"
+    SourceSelection:
+      allOf:
+        - $ref: "#/components/schemas/SourceDefinition"
+        - type: object
+          required: [enabled]
+          properties:
+            enabled:
+              type: boolean
+    Preferences:
+      type: object
+      required:
+        [learningStyle, growthFocus, cognitiveApproach, hoursPerWeek, recommendationCadence]
+      properties:
+        learningStyle:
+          type: string
+          enum: [hands_on, reading, video, discussion]
+        growthFocus:
+          type: string
+          enum: [career_growth, mastery, exploration, delivery_impact]
+        cognitiveApproach:
+          type: string
+          enum: [theory_first, practice_first, structured, exploratory]
+        hoursPerWeek:
+          type: integer
+          minimum: 1
+          maximum: 20
+          example: 4
+        recommendationCadence:
+          type: string
+          enum: [daily, weekly]
+        weeklyNudgesEnabled:
+          type: boolean
+          default: true
+    PreferencesUpdateRequest:
+      allOf:
+        - $ref: "#/components/schemas/Preferences"
+    GrowthPlanGenerateRequest:
+      type: object
+      properties:
+        forceRefresh:
+          type: boolean
+          default: false
+        maxThemes:
+          type: integer
+          minimum: 3
+          maximum: 5
+          default: 4
+    DashboardView:
+      type: object
+      required:
+        [displayName, currentLevel, totalXp, weeklyXp, streakDays, focusArea, nextAction]
+      properties:
+        displayName:
+          type: string
+          example: Alex
+        currentLevel:
+          type: integer
+          minimum: 1
+          example: 4
+        totalXp:
+          type: integer
+          minimum: 0
+          example: 2450
+        weeklyXp:
+          type: integer
+          minimum: 0
+          example: 340
+        streakDays:
+          type: integer
+          minimum: 0
+          example: 7
+        completedTasks:
+          type: integer
+          minimum: 0
+          example: 12
+        focusArea:
+          type: string
+          example: Backend
+        activeGrowthPath:
+          type: string
+          example: Backend Engineering — Production Readiness
+        nextAction:
+          $ref: "#/components/schemas/TaskSummary"
+        progressSummary:
+          type: array
+          items:
+            $ref: "#/components/schemas/GrowthThemeProgress"
+    SkillProfileView:
+      type: object
+      required: [targetRole, strengths, growthAreas]
+      properties:
+        targetRole:
+          $ref: "#/components/schemas/TargetRoleComparison"
+        strengths:
+          type: array
+          items:
+            $ref: "#/components/schemas/SkillRating"
+        growthAreas:
+          type: array
+          items:
+            $ref: "#/components/schemas/SkillRating"
+    TargetRoleComparison:
+      type: object
+      required: [title, gapSkills, narrative]
+      properties:
+        title:
+          type: string
+          example: Mid-Level Backend Engineer
+        gapSkills:
+          type: array
+          items:
+            type: string
+          example: [System Design, Observability, Error Handling]
+        narrative:
+          type: string
+          example: You already show strong implementation ability, but need stronger reliability and architectural tradeoff communication.
+    GrowthPlan:
+      type: object
+      required: [growthPlanId, summary, whyThisPath, themes]
+      properties:
+        growthPlanId:
+          type: string
+        summary:
+          type: string
+          example: Personalized learning journey toward production readiness.
+        whyThisPath:
+          type: string
+          example: This path prioritizes observability and system design because your profile shows strong implementation skills but limited production evidence.
+        currentThemeId:
+          type: string
+        currentTaskId:
+          type: string
+        themes:
+          type: array
+          items:
+            $ref: "#/components/schemas/GrowthTheme"
+    GrowthTheme:
+      type: object
+      required: [id, name, description, whyItMatters, progressPercent, tasks]
+      properties:
+        id:
+          type: string
+          example: observability_logging
+        name:
+          type: string
+          example: Observability and Logging
+        description:
+          type: string
+        whyItMatters:
+          type: string
+        estimatedEffortHours:
+          type: number
+          format: float
+          example: 6.5
+        progressPercent:
+          type: integer
+          minimum: 0
+          maximum: 100
+        tasks:
+          type: array
+          items:
+            $ref: "#/components/schemas/TaskSummary"
+    GrowthThemeProgress:
+      type: object
+      required: [themeId, name, progressPercent]
+      properties:
+        themeId:
+          type: string
+        name:
+          type: string
+        progressPercent:
+          type: integer
+          minimum: 0
+          maximum: 100
+    TaskSummary:
+      type: object
+      required: [id, title, xpReward, estimatedDurationMinutes, status]
+      properties:
+        id:
+          type: string
+          example: task_error_handling_003
+        title:
+          type: string
+          example: Improve error handling in async services
+        growthArea:
+          type: string
+          example: Error Handling
+        xpReward:
+          type: integer
+          minimum: 0
+          example: 120
+        estimatedDurationMinutes:
+          type: integer
+          minimum: 5
+          example: 45
+        status:
+          type: string
+          enum: [upcoming, current, completed]
+        rationaleSnippet:
+          type: string
+          example: Recommended from recent PR feedback and your growth goals.
+    TaskDetail:
+      allOf:
+        - $ref: "#/components/schemas/TaskSummary"
+        - type: object
+          required: [description, whyRecommended, expectedOutcomes, resources]
+          properties:
+            description:
+              type: string
+            whyRecommended:
+              type: array
+              items:
+                type: string
+            expectedOutcomes:
+              type: array
+              items:
+                type: string
+            resources:
+              type: array
+              items:
+                $ref: "#/components/schemas/LearningResource"
+    LearningResource:
+      type: object
+      required: [id, title, resourceType, sourceId, sourceCategory, rationale]
+      properties:
+        id:
+          type: string
+          example: res_youtube_async_errors_01
+        title:
+          type: string
+          example: Async Error Patterns in Production
+        resourceType:
+          type: string
+          enum: [internal_doc, pr_feedback, coaching_note, official_doc, blog, video, paper, search_result]
+        sourceId:
+          type: string
+          example: youtube
+        sourceCategory:
+          type: string
+          enum: [internal, external]
+        integrationMode:
+          type: string
+          enum: [local_json, mcp_connector, http_api]
+        url:
+          type: string
+          format: uri
+        artifactPath:
+          type: string
+          example: data/internal_sources/github_pr_feedback.json
+        rationale:
+          type: string
+          example: Chosen because it matches the topic, your preferred learning mode, and the current task objective.
+    TaskCompletionRequest:
+      type: object
+      properties:
+        reflection:
+          type: string
+          example: I applied a team-standard error boundary pattern to two async handlers.
+        evidenceNote:
+          type: string
+          example: Added structured logging and custom domain errors.
+        completedAt:
+          type: string
+          format: date-time
+    TaskCompletionResponse:
+      type: object
+      required: [taskId, status, awardedXp, totalXp, currentLevel, streakDays]
+      properties:
+        taskId:
+          type: string
+        status:
+          type: string
+          enum: [completed]
+        awardedXp:
+          type: integer
+          minimum: 0
+        totalXp:
+          type: integer
+          minimum: 0
+        currentLevel:
+          type: integer
+          minimum: 1
+        streakDays:
+          type: integer
+          minimum: 0
+        nextTaskId:
+          type: string
+        nextRecommendedRoute:
+          type: string
+          example: /task/task_observability_002
+    ErrorResponse:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          example: VALIDATION_ERROR
+        message:
+          type: string
+          example: The request payload is missing required fields.
+        details:
+          type: array
+          items:
+            type: string

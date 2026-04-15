@@ -6,6 +6,7 @@ default_install_hook_types:
   - commit-msg
 
 default_stages: [pre-commit]
+exclude: ^frontend/
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -27,15 +28,17 @@ repos:
           - types-requests==2.28.11.8
           - types-urllib3==1.26.25.4
         args:
-          - --config-file=pyproject.toml # Use pyproject.toml for configuration
+          - --config-file=backend/pyproject.toml
           - --ignore-missing-imports
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.14.13
     hooks:
       - id: ruff-check
-        args: [--config=pyproject.toml]
+        args: [--config=backend/pyproject.toml]
+        files: ^backend/.*\.py$
       - id: ruff-format
-        args: [--config=pyproject.toml]
+        args: [--config=backend/pyproject.toml]
+        files: ^backend/.*\.py$
   - repo: https://github.com/compilerla/conventional-pre-commit
     rev: v4.3.0
     hooks:

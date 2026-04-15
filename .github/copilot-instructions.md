@@ -66,4 +66,3 @@ Examples:
 - Type checking (mypy)
 - Dependency vulnerabilities (uv-secure in CI)
 - License compliance (liccheck in CI)
-

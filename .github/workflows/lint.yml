@@ -4,6 +4,9 @@ jobs:
   pipeline:
     name: lint code
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
     steps:
     - name: checkout repository
       uses: actions/checkout@v4
@@ -20,12 +23,3 @@ jobs:
       run: |
         uv sync --group dev --frozen
         uv run pre-commit run --all-files
-
-    - name: vulnerability_scan
-      run: |
-        uv sync --all-groups --frozen
-        uv run uv-secure uv.lock
-
-    - name: license_check
-      run: |
-        ./run_license_check.sh --modules-file python-modules

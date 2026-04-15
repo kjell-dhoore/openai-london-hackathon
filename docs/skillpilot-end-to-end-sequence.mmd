@@ -1,0 +1,128 @@
+sequenceDiagram
+    autonumber
+    actor Learner
+    participant Frontend as Lovable Frontend
+    participant API as FastAPI Backend
+    participant Orch as Orchestrator
+    participant SessionStore as Session JSON Store
+    participant Ingestion as Ingestion Agent
+    participant InternalData as Internal Sources JSON
+    participant MCP as MCP Integrations Layer
+    participant External as External Sources
+    participant Planner as Growth Plan Agent
+
+    Learner->>Frontend: Open SkillPilot
+    Frontend->>Frontend: Read cached sessionId from browser storage
+
+    alt Returning user session exists
+        Frontend->>API: GET /v1/sessions/{sessionId}
+        API->>SessionStore: Load persisted session snapshot
+        SessionStore-->>API: onboarding state, preferences, sources, progress
+        API-->>Frontend: SessionSummary(recommendedRoute=/dashboard)
+        Frontend->>API: GET /v1/sessions/{sessionId}/dashboard
+        API->>SessionStore: Read dashboard view model
+        SessionStore-->>API: next action, XP, streak, growth progress
+        API-->>Frontend: DashboardView
+    else New user starts onboarding
+        Frontend->>API: POST /v1/sessions
+        API->>SessionStore: Create local JSON session record
+        SessionStore-->>API: sessionId + status=new
+        API-->>Frontend: SessionSummary(recommendedRoute=/onboarding)
+
+        Learner->>Frontend: Upload resume or import LinkedIn profile
+        Learner->>Frontend: Provide job description and profile fields
+        Frontend->>API: POST /v1/sessions/{sessionId}/profile-intake
+        API->>Orch: Start profile analysis job
+        Orch->>SessionStore: Persist intake payload + job status
+        Orch->>Ingestion: Parse resume, JD, and self-reported profile fields
+        Ingestion-->>Orch: Extracted skills, likely strengths, missing info
+        Orch->>SessionStore: Save draft learner profile
+        API-->>Frontend: 202 Accepted(jobId)
+
+        loop Poll profile-analysis job
+            Frontend->>API: GET /v1/jobs/{jobId}
+            API->>SessionStore: Read job status
+            SessionStore-->>API: stage + progressPercent
+            API-->>Frontend: JobStatus
+        end
+
+        Frontend->>API: GET /v1/sessions/{sessionId}/profile
+        API->>SessionStore: Load generated learner profile
+        SessionStore-->>API: profile summary + missing-information hints
+        API-->>Frontend: ProfileSummary
+
+        Learner->>Frontend: Answer adaptive quiz
+        Frontend->>API: POST /v1/sessions/{sessionId}/quiz-responses
+        API->>Orch: Refine profile with quiz signals
+        Orch->>SessionStore: Update learner profile + onboarding state
+        API-->>Frontend: Refined ProfileSummary
+
+        Learner->>Frontend: Enable sources and set preferences
+        Frontend->>API: GET /v1/sources/catalog
+        API-->>Frontend: Source catalog with mocked internal and live external sources
+        Frontend->>API: PUT /v1/sessions/{sessionId}/sources
+        API->>SessionStore: Persist enabled sources
+        Frontend->>API: PUT /v1/sessions/{sessionId}/preferences
+        API->>SessionStore: Persist learning preferences
+
+        Learner->>Frontend: Generate growth plan
+        Frontend->>API: POST /v1/sessions/{sessionId}/growth-plan/generate
+        API->>Orch: Start growth-plan generation job
+        Orch->>SessionStore: Load profile, preferences, enabled sources, current progress
+        SessionStore-->>Orch: Session context
+        Orch->>Ingestion: Fetch evidence and candidate learning resources
+
+        par Internal sources are mocked
+            Ingestion->>InternalData: Read local JSON fixtures
+            InternalData-->>Ingestion: Mocked docs, PR feedback, coaching notes
+        and External sources are live integrations
+            Ingestion->>MCP: Query enabled source connectors
+            MCP->>External: Search/fetch YouTube, Google Search, Scholar, Medium, docs
+            External-->>MCP: Real results, metadata, and URLs
+            MCP-->>Ingestion: Normalized external resources
+        end
+
+        Ingestion-->>Orch: Ranked evidence bundle
+        Orch->>Planner: Build personalized growth themes, tasks, and rationale
+        Planner->>SessionStore: Read historic progress and active goals
+        SessionStore-->>Planner: XP, completed tasks, streak, active path
+        Planner-->>Orch: Growth plan + task list + next best action
+        Orch->>SessionStore: Persist growth plan, dashboard snapshot, task details
+        API-->>Frontend: 202 Accepted(jobId)
+
+        loop Poll growth-plan job
+            Frontend->>API: GET /v1/jobs/{jobId}
+            API->>SessionStore: Read generation status
+            SessionStore-->>API: stage + progressPercent
+            API-->>Frontend: JobStatus
+        end
+
+        Frontend->>API: GET /v1/sessions/{sessionId}/dashboard
+        API->>SessionStore: Load dashboard read model
+        SessionStore-->>API: next recommended action + progress
+        API-->>Frontend: DashboardView
+    end
+
+    Learner->>Frontend: Open skill profile, growth path, or task detail
+    Frontend->>API: GET /v1/sessions/{sessionId}/skill-profile
+    API->>SessionStore: Read skill profile projection
+    SessionStore-->>API: strengths, growth areas, role-gap evidence
+    API-->>Frontend: SkillProfileView
+
+    Frontend->>API: GET /v1/sessions/{sessionId}/growth-plan
+    API->>SessionStore: Read growth plan projection
+    SessionStore-->>API: themes, progress, current task
+    API-->>Frontend: GrowthPlan
+
+    Frontend->>API: GET /v1/sessions/{sessionId}/tasks/{taskId}
+    API->>SessionStore: Read task detail projection
+    SessionStore-->>API: rationale, expected outcomes, resources
+    API-->>Frontend: TaskDetail
+
+    Learner->>Frontend: Mark task complete
+    Frontend->>API: POST /v1/sessions/{sessionId}/tasks/{taskId}/complete
+    API->>Orch: Apply progress update
+    Orch->>SessionStore: Update task status, XP, streak, and next action
+    SessionStore-->>Orch: Updated session snapshot
+    Orch-->>API: Task completion outcome
+    API-->>Frontend: TaskCompletionResponse
