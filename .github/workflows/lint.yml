@@ -4,6 +4,9 @@ jobs:
   pipeline:
     name: lint code
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
     steps:
     - name: checkout repository
       uses: actions/checkout@v4
