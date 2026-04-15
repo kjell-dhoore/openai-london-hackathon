@@ -1,7 +1,10 @@
 """Core orchestration and business logic for the SkillPilot backend."""
 
+import json
+import logging
 from collections.abc import Iterable
 from datetime import datetime, timezone
+from typing import Any
 from urllib.parse import quote_plus
 from uuid import uuid4
 
@@ -49,6 +52,12 @@ from app.dtos.skillpilot import (
     TaskStatus,
     TaskSummary,
 )
+from app.llm.agents import (
+    GrowthPlanOutput,
+    LlmAgentError,
+    ProfileAnalysisOutput,
+    SkillPilotPromptAgents,
+)
 from app.seed_data import (
     DEFAULT_PREFERENCES,
     DEFAULT_SOURCE_CATALOG,
@@ -59,6 +68,8 @@ from app.seed_data import (
 )
 from app.store import JsonStore
 from fastapi import BackgroundTasks, HTTPException, status
+
+logger = logging.getLogger(__name__)
 
 
 def _utc_now() -> datetime:
@@ -74,6 +85,11 @@ def _generate_identifier(prefix: str) -> str:
 def _clamp(value: float, lower: int, upper: int) -> int:
     """Clamp a numeric value to an inclusive range."""
     return max(lower, min(round(value), upper))
+
+
+def json_dumps(payload: object) -> str:
+    """Serialize prompt context into stable pretty JSON."""
+    return json.dumps(payload, indent=2, sort_keys=True)
 
 
 def _normalize_text(parts: Iterable[str | None]) -> str:
@@ -125,22 +141,50 @@ def _target_role_skill_ids(target_role: str | None) -> list[str]:
 
 
 class _IngestionAgent:
-    """Deterministic ingestion agent for mocked internal and live-link external sources."""
+    """Profile-analysis agent with OpenAI-backed and deterministic execution paths."""
 
-    def __init__(self, store: JsonStore, source_catalog: list[SourceDefinition]) -> None:
+    def __init__(
+        self,
+        settings: Settings,
+        store: JsonStore,
+        source_catalog: list[SourceDefinition],
+    ) -> None:
+        self._settings = settings
         self._store = store
         self._catalog_by_id = {source.id: source for source in source_catalog}
+        self._prompt_agents = (
+            SkillPilotPromptAgents(api_key=settings.openai_api_key, model=settings.openai_model)
+            if settings.openai_api_key
+            else None
+        )
 
     def build_profile(
         self,
         session: StoredSession,
         quiz_responses: list[QuizResponse] | None = None,
     ) -> tuple[ProfileSummary, SkillProfileView]:
+        quiz_responses = quiz_responses or []
+        prompt_agents = self._prompt_agents
+        if self._settings.llm_mode == "openai" and prompt_agents is not None:
+            try:
+                return self._build_profile_with_llm(session, quiz_responses, prompt_agents)
+            except (KeyError, TypeError, ValueError, LlmAgentError) as exc:  # pragma: no cover
+                logger.warning(
+                    "OpenAI profile analysis failed; falling back to deterministic builder.",
+                    exc_info=exc,
+                )
+
+        return self._build_profile_deterministic(session, quiz_responses)
+
+    def _build_profile_deterministic(
+        self,
+        session: StoredSession,
+        quiz_responses: list[QuizResponse],
+    ) -> tuple[ProfileSummary, SkillProfileView]:
         intake = session.intake
         if intake is None:
             raise ValueError("Cannot build a profile without intake data.")
 
-        quiz_responses = quiz_responses or []
         combined_text = _normalize_text(
             [
                 intake.resume_text,
@@ -250,6 +294,177 @@ class _IngestionAgent:
                 growth_areas=growth_areas,
             ),
         )
+
+    def _build_profile_with_llm(
+        self,
+        session: StoredSession,
+        quiz_responses: list[QuizResponse],
+        prompt_agents: SkillPilotPromptAgents,
+    ) -> tuple[ProfileSummary, SkillProfileView]:
+        intake = session.intake
+        if intake is None:
+            raise ValueError("Cannot build a profile without intake data.")
+
+        selected_source_ids = {source.id for source in session.selected_sources if source.enabled}
+        enabled_documents = self._enabled_internal_documents(selected_source_ids)
+        llm_output = prompt_agents.analyze_profile(
+            {
+                "session_json": json_dumps(session.to_summary().model_dump(mode="json")),
+                "intake_json": json_dumps(intake.model_dump(mode="json")),
+                "quiz_responses_json": json_dumps(
+                    [response.model_dump(mode="json") for response in quiz_responses]
+                ),
+                "enabled_sources_json": json_dumps(
+                    [
+                        source.model_dump(mode="json")
+                        for source in session.selected_sources
+                        if source.enabled
+                    ]
+                ),
+                "evidence_documents_json": json_dumps(enabled_documents),
+                "skill_library_json": json_dumps(SKILL_LIBRARY),
+                "target_role_skill_map_json": json_dumps(TARGET_ROLE_KEY_SKILLS),
+            }
+        )
+        return self._profile_from_llm_output(session, llm_output, enabled_documents)
+
+    def _profile_from_llm_output(
+        self,
+        session: StoredSession,
+        llm_output: ProfileAnalysisOutput,
+        enabled_documents: list[dict[str, object]],
+    ) -> tuple[ProfileSummary, SkillProfileView]:
+        intake = session.intake
+        if intake is None:
+            raise ValueError("Cannot build a profile without intake data.")
+
+        strengths = self._materialize_skill_ratings(
+            assessments=llm_output.strengths,
+            documents=enabled_documents,
+            apply_priority=False,
+        )
+        growth_areas = self._materialize_skill_ratings(
+            assessments=llm_output.growth_areas,
+            documents=enabled_documents,
+            apply_priority=True,
+        )
+        if len(strengths) != 4 or len(growth_areas) != 4:
+            raise ValueError("LLM output did not produce the expected number of skill ratings.")
+
+        gap_skill_names: list[str] = []
+        for skill_id in llm_output.target_role_gap_skill_ids:
+            metadata = SKILL_LIBRARY.get(skill_id)
+            if metadata is not None:
+                gap_skill_names.append(str(metadata["name"]))
+        if not gap_skill_names:
+            gap_skill_names = [rating.name for rating in growth_areas[:3]]
+
+        profile = ProfileSummary(
+            profile_id=_generate_identifier("profile"),
+            display_name=session.display_name,
+            current_role=intake.current_role,
+            target_role=intake.target_role,
+            years_of_experience=intake.years_of_experience,
+            current_focus=intake.current_focus,
+            maturity_snapshot=llm_output.maturity_snapshot,
+            goal_direction=llm_output.goal_direction,
+            explanation=llm_output.explanation,
+            missing_information=llm_output.missing_information,
+            strengths=strengths,
+            growth_areas=growth_areas,
+        )
+        target_role_comparison = TargetRoleComparison(
+            title=intake.target_role or "Growth target",
+            gap_skills=gap_skill_names[:3],
+            narrative=llm_output.target_role_narrative,
+        )
+        return (
+            profile,
+            SkillProfileView(
+                target_role=target_role_comparison,
+                strengths=strengths,
+                growth_areas=growth_areas,
+            ),
+        )
+
+    def _materialize_skill_ratings(
+        self,
+        *,
+        assessments: list[Any],
+        documents: list[dict[str, object]],
+        apply_priority: bool,
+    ) -> list[SkillRating]:
+        document_by_id = {str(document["id"]): document for document in documents}
+        seen_skill_ids: set[str] = set()
+        ratings: list[SkillRating] = []
+        for assessment in assessments:
+            skill_id = assessment.skill_id
+            metadata = SKILL_LIBRARY.get(skill_id)
+            if metadata is None or skill_id in seen_skill_ids:
+                continue
+
+            evidence: list[SkillEvidence] = []
+            for document_id in assessment.evidence_document_ids[:3]:
+                document = document_by_id.get(document_id)
+                if document is None:
+                    continue
+                evidence.append(
+                    SkillEvidence(
+                        source_id=str(document["source_id"]),
+                        source_category=SourceCategory.INTERNAL,
+                        title=str(document["title"]),
+                        summary=str(document["summary"]),
+                        link=None,
+                    )
+                )
+            if not evidence:
+                evidence.append(
+                    SkillEvidence(
+                        source_id="analysis",
+                        source_category="self_reported",
+                        title=f"Assessment for {metadata['name']}",
+                        summary=assessment.rationale,
+                    )
+                )
+
+            rating = SkillRating(
+                id=skill_id,
+                name=str(metadata["name"]),
+                category=str(metadata["category"]),
+                level_percent=assessment.level_percent,
+                band=_band_from_score(assessment.level_percent),
+                confidence=assessment.confidence,
+                priority=(
+                    _priority_from_score(assessment.level_percent) if apply_priority else None
+                ),
+                evidence=evidence[:3],
+            )
+            ratings.append(rating)
+            seen_skill_ids.add(skill_id)
+
+        return ratings
+
+    def _enabled_internal_documents(
+        self,
+        enabled_source_ids: set[str],
+    ) -> list[dict[str, object]]:
+        documents: list[dict[str, object]] = []
+        for source_bundle in self._store.load_internal_sources().sources:
+            if source_bundle.source_id not in enabled_source_ids:
+                continue
+            for document in source_bundle.documents:
+                documents.append(
+                    {
+                        "id": document.id,
+                        "source_id": source_bundle.source_id,
+                        "title": document.title,
+                        "summary": document.summary,
+                        "tags": document.tags,
+                        "artifact_path": document.artifact_path,
+                        "resource_type": document.resource_type.value,
+                    }
+                )
+        return documents
 
     def collect_resources(
         self,
@@ -501,12 +716,40 @@ class _IngestionAgent:
 
 
 class _GrowthPlanAgent:
-    """Deterministic growth-plan agent with a future seam for OpenAI-backed generation."""
+    """Growth-plan agent with OpenAI-backed and deterministic execution paths."""
 
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
+        self._prompt_agents = (
+            SkillPilotPromptAgents(api_key=settings.openai_api_key, model=settings.openai_model)
+            if settings.openai_api_key
+            else None
+        )
 
     def build_growth_plan(
+        self,
+        session: StoredSession,
+        resources_by_skill: dict[str, list[LearningResource]],
+        max_themes: int,
+    ) -> tuple[GrowthPlan, dict[str, TaskDetail], dict[str, str]]:
+        prompt_agents = self._prompt_agents
+        if self._settings.llm_mode == "openai" and prompt_agents is not None:
+            try:
+                return self._build_growth_plan_with_llm(
+                    session,
+                    resources_by_skill,
+                    max_themes,
+                    prompt_agents,
+                )
+            except (KeyError, TypeError, ValueError, LlmAgentError) as exc:  # pragma: no cover
+                logger.warning(
+                    "OpenAI growth-plan generation failed; falling back to deterministic builder.",
+                    exc_info=exc,
+                )
+
+        return self._build_growth_plan_deterministic(session, resources_by_skill, max_themes)
+
+    def _build_growth_plan_deterministic(
         self,
         session: StoredSession,
         resources_by_skill: dict[str, list[LearningResource]],
@@ -626,6 +869,141 @@ class _GrowthPlanAgent:
             growth_plan_id=_generate_identifier("gp"),
             summary=summary,
             why_this_path=why_this_path,
+            current_theme_id=current_theme_id,
+            current_task_id=current_task_id,
+            themes=theme_entries,
+        )
+        return growth_plan, task_details, task_theme_map
+
+    def _build_growth_plan_with_llm(
+        self,
+        session: StoredSession,
+        resources_by_skill: dict[str, list[LearningResource]],
+        max_themes: int,
+        prompt_agents: SkillPilotPromptAgents,
+    ) -> tuple[GrowthPlan, dict[str, TaskDetail], dict[str, str]]:
+        if session.profile is None or session.intake is None or session.skill_profile is None:
+            raise ValueError("Cannot build a growth plan without a generated profile.")
+
+        allowed_theme_skill_ids = [
+            rating.id for rating in session.profile.growth_areas[:max_themes]
+        ]
+        resources_payload = {
+            skill_id: [resource.model_dump(mode="json") for resource in resources]
+            for skill_id, resources in resources_by_skill.items()
+        }
+        llm_output = prompt_agents.generate_growth_plan(
+            {
+                "session_json": json_dumps(session.to_summary().model_dump(mode="json")),
+                "profile_json": json_dumps(session.profile.model_dump(mode="json")),
+                "skill_profile_json": json_dumps(session.skill_profile.model_dump(mode="json")),
+                "preferences_json": json_dumps(session.preferences.model_dump(mode="json")),
+                "allowed_theme_skill_ids_json": json_dumps(allowed_theme_skill_ids),
+                "theme_templates_json": json_dumps(
+                    {skill_id: THEME_TEMPLATES[skill_id] for skill_id in allowed_theme_skill_ids}
+                ),
+                "resources_by_skill_json": json_dumps(resources_payload),
+            }
+        )
+        return self._growth_plan_from_llm_output(
+            llm_output=llm_output,
+            resources_by_skill=resources_by_skill,
+            allowed_theme_skill_ids=allowed_theme_skill_ids,
+        )
+
+    def _growth_plan_from_llm_output(
+        self,
+        *,
+        llm_output: GrowthPlanOutput,
+        resources_by_skill: dict[str, list[LearningResource]],
+        allowed_theme_skill_ids: list[str],
+    ) -> tuple[GrowthPlan, dict[str, TaskDetail], dict[str, str]]:
+        seen_theme_ids: set[str] = set()
+        ordered_themes: list[Any] = []
+        theme_by_skill_id = {theme.skill_id: theme for theme in llm_output.themes}
+        for skill_id in allowed_theme_skill_ids:
+            theme = theme_by_skill_id.get(skill_id)
+            if theme is not None and skill_id not in seen_theme_ids:
+                ordered_themes.append(theme)
+                seen_theme_ids.add(skill_id)
+
+        if len(ordered_themes) != len(allowed_theme_skill_ids):
+            raise ValueError("LLM output did not return the expected ordered themes.")
+
+        theme_entries: list[GrowthTheme] = []
+        task_details: dict[str, TaskDetail] = {}
+        task_theme_map: dict[str, str] = {}
+        current_task_id: str | None = None
+        current_theme_id: str | None = None
+
+        for theme in ordered_themes:
+            skill_id = theme.skill_id
+            skill_name = str(SKILL_LIBRARY[skill_id]["name"])
+            theme_resources_by_id = {
+                resource.id: resource for resource in resources_by_skill.get(skill_id, [])
+            }
+            theme_tasks: list[TaskSummary] = []
+            theme_total_minutes = 0
+
+            for task_draft in theme.tasks:
+                task_id = _generate_identifier(f"task_{skill_id}")
+                task_status = TaskStatus.CURRENT if current_task_id is None else TaskStatus.UPCOMING
+                if current_task_id is None:
+                    current_task_id = task_id
+                    current_theme_id = skill_id
+
+                selected_resources = [
+                    theme_resources_by_id[resource_id]
+                    for resource_id in task_draft.resource_ids
+                    if resource_id in theme_resources_by_id
+                ]
+                if not selected_resources:
+                    selected_resources = resources_by_skill.get(skill_id, [])[:3]
+
+                task_detail = TaskDetail(
+                    id=task_id,
+                    title=task_draft.title,
+                    growth_area=skill_name,
+                    xp_reward=task_draft.xp_reward,
+                    estimated_duration_minutes=task_draft.estimated_duration_minutes,
+                    status=task_status,
+                    rationale_snippet=task_draft.rationale_snippet,
+                    description=task_draft.description,
+                    why_recommended=task_draft.why_recommended,
+                    expected_outcomes=task_draft.expected_outcomes,
+                    resources=selected_resources,
+                )
+                task_details[task_id] = task_detail
+                task_theme_map[task_id] = skill_id
+                theme_tasks.append(
+                    TaskSummary(
+                        id=task_id,
+                        title=task_detail.title,
+                        growth_area=task_detail.growth_area,
+                        xp_reward=task_detail.xp_reward,
+                        estimated_duration_minutes=task_detail.estimated_duration_minutes,
+                        status=task_detail.status,
+                        rationale_snippet=task_detail.rationale_snippet,
+                    )
+                )
+                theme_total_minutes += task_detail.estimated_duration_minutes
+
+            theme_entries.append(
+                GrowthTheme(
+                    id=skill_id,
+                    name=theme.name,
+                    description=theme.description,
+                    why_it_matters=theme.why_it_matters,
+                    estimated_effort_hours=round(theme_total_minutes / 60, 1),
+                    progress_percent=0,
+                    tasks=theme_tasks,
+                )
+            )
+
+        growth_plan = GrowthPlan(
+            growth_plan_id=_generate_identifier("gp"),
+            summary=llm_output.summary,
+            why_this_path=llm_output.why_this_path,
             current_theme_id=current_theme_id,
             current_task_id=current_task_id,
             themes=theme_entries,
@@ -864,7 +1242,11 @@ class SkillPilotService:
             SourceDefinition.model_validate(source_payload)
             for source_payload in DEFAULT_SOURCE_CATALOG
         ]
-        self._ingestion_agent = _IngestionAgent(store=store, source_catalog=self._source_catalog)
+        self._ingestion_agent = _IngestionAgent(
+            settings=settings,
+            store=store,
+            source_catalog=self._source_catalog,
+        )
         self._growth_plan_agent = _GrowthPlanAgent(settings=settings)
         self._orchestrator = _Orchestrator(
             store=store,

@@ -1,4 +1,549 @@
 {
-  "jobs": {},
-  "sessions": {}
+  "sessions": {
+    "sess_kjell_dhoore_2026Q2": {
+      "session_id": "sess_kjell_dhoore_2026Q2",
+      "status": "profile_ready",
+      "onboarding_complete": true,
+      "profile_ready": true,
+      "growth_plan_ready": false,
+      "recommended_route": "/sources",
+      "display_name": "Kjell Dhoore",
+      "locale": null,
+      "timezone": null,
+      "current_level": 1,
+      "total_xp": 300,
+      "weekly_xp": 250,
+      "streak_days": 5,
+      "completed_tasks": 3,
+      "focus_area": "Architectural Thinking",
+      "active_growth_path": "Junior to Mid-level ML Engineer Growth Path",
+      "active_task_id": null,
+      "updated_at": "2026-04-15T08:42:00Z",
+      "intake": {
+        "import_mode": "summary_only",
+        "resume_text": null,
+        "resume_filename": "cv_Kjell_Dhoore_EN.pdf",
+        "linkedin_profile_url": null,
+        "professional_summary": "Junior ML Engineer at ML6 with strong Python, FastAPI, MLOps, and generative AI experience, working toward broader architectural ownership.",
+        "job_description_text": "Grow into a Medior ML Engineer with stronger architectural decision-making, production observability, separation of concerns, and communication in design discussions.",
+        "current_role": "Junior ML Engineer",
+        "years_of_experience": 4.0,
+        "target_role": "Medior ML Engineer",
+        "current_focus": "Architectural Design & Decision Documentation"
+      },
+      "profile": {
+        "profile_id": "profile_kjell_dhoore_2026q2",
+        "display_name": "Kjell Dhoore",
+        "current_role": "Junior ML Engineer",
+        "target_role": "Medior ML Engineer",
+        "years_of_experience": 4.0,
+        "current_focus": "Architectural Thinking",
+        "maturity_snapshot": "You already show strong implementation ability in python and machine learning, while system design and observability are the clearest next areas to grow.",
+        "goal_direction": "Move from Junior ML Engineer toward medior ML engineer with stronger architectural confidence and production readiness.",
+        "explanation": "This seeded profile was adapted from the richer mock session data and aligned to the backend's supported profile schema.",
+        "missing_information": [
+          "job_description"
+        ],
+        "strengths": [
+          {
+            "id": "python",
+            "name": "Python",
+            "category": "software_engineering",
+            "level_percent": 88,
+            "band": "advanced",
+            "confidence": 0.92,
+            "priority": null,
+            "evidence": [
+              {
+                "source_id": "self_reported",
+                "source_category": "self_reported",
+                "title": "Resume and project history",
+                "summary": "Mock session data highlights Python as a consistently strong implementation skill.",
+                "link": null
+              },
+              {
+                "source_id": "github",
+                "source_category": "internal",
+                "title": "PR Feedback on Async Error Handling",
+                "summary": "Line-level review data shows fluent backend implementation patterns.",
+                "link": null
+              }
+            ]
+          },
+          {
+            "id": "machine_learning",
+            "name": "Machine Learning",
+            "category": "ml_engineering",
+            "level_percent": 82,
+            "band": "advanced",
+            "confidence": 0.86,
+            "priority": null,
+            "evidence": [
+              {
+                "source_id": "self_reported",
+                "source_category": "self_reported",
+                "title": "Resume and certifications",
+                "summary": "Mock session data references transformers, embeddings, MLflow, and multi-cloud ML experience.",
+                "link": null
+              }
+            ]
+          },
+          {
+            "id": "deployment",
+            "name": "Production Deployment",
+            "category": "reliability",
+            "level_percent": 75,
+            "band": "strong",
+            "confidence": 0.78,
+            "priority": null,
+            "evidence": [
+              {
+                "source_id": "confluence",
+                "source_category": "internal",
+                "title": "Helios Deployment Pattern Docs",
+                "summary": "Internal deployment notes reinforce prior exposure to rollout and production delivery patterns.",
+                "link": null
+              }
+            ]
+          },
+          {
+            "id": "api_design",
+            "name": "API Design",
+            "category": "backend_engineering",
+            "level_percent": 70,
+            "band": "strong",
+            "confidence": 0.79,
+            "priority": null,
+            "evidence": [
+              {
+                "source_id": "google_drive",
+                "source_category": "internal",
+                "title": "API Style Guide",
+                "summary": "Mock evidence and existing internal docs both point to good instincts for explicit API contracts.",
+                "link": null
+              }
+            ]
+          }
+        ],
+        "growth_areas": [
+          {
+            "id": "system_design",
+            "name": "System Design",
+            "category": "architecture",
+            "level_percent": 35,
+            "band": "emerging",
+            "confidence": 0.74,
+            "priority": "high",
+            "evidence": [
+              {
+                "source_id": "coaching_notes",
+                "source_category": "internal",
+                "title": "Coaching Note: Architectural Communication",
+                "summary": "Coaching feedback says boundary-framing and tradeoff articulation should improve.",
+                "link": null
+              },
+              {
+                "source_id": "confluence",
+                "source_category": "internal",
+                "title": "Architecture Review Template",
+                "summary": "Internal reference material supports more explicit design reasoning.",
+                "link": null
+              }
+            ]
+          },
+          {
+            "id": "observability",
+            "name": "Observability",
+            "category": "reliability",
+            "level_percent": 30,
+            "band": "emerging",
+            "confidence": 0.8,
+            "priority": "high",
+            "evidence": [
+              {
+                "source_id": "github",
+                "source_category": "internal",
+                "title": "PR Feedback on Missing Metrics",
+                "summary": "Review feedback called out missing metrics and limited production visibility.",
+                "link": null
+              },
+              {
+                "source_id": "coaching_notes",
+                "source_category": "internal",
+                "title": "Coaching Note: Reliability Growth",
+                "summary": "Mentor notes position observability as the next key growth step.",
+                "link": null
+              }
+            ]
+          },
+          {
+            "id": "error_handling",
+            "name": "Error Handling",
+            "category": "backend_engineering",
+            "level_percent": 40,
+            "band": "developing",
+            "confidence": 0.76,
+            "priority": "medium",
+            "evidence": [
+              {
+                "source_id": "github",
+                "source_category": "internal",
+                "title": "PR Feedback on Async Error Handling",
+                "summary": "Mock PR review data highlights inconsistent exception handling in async flows.",
+                "link": null
+              }
+            ]
+          },
+          {
+            "id": "git_collaboration",
+            "name": "Git & Collaboration",
+            "category": "delivery",
+            "level_percent": 38,
+            "band": "emerging",
+            "confidence": 0.68,
+            "priority": "medium",
+            "evidence": [
+              {
+                "source_id": "coaching_notes",
+                "source_category": "internal",
+                "title": "Coaching note - Sanne (Apr 10)",
+                "summary": "Mock coaching data emphasizes clearer communication of risks, rationale, and tradeoffs in team settings.",
+                "link": null
+              }
+            ]
+          }
+        ]
+      },
+      "preferences": {
+        "learning_style": "hands_on",
+        "growth_focus": "career_growth",
+        "cognitive_approach": "practice_first",
+        "hours_per_week": 4,
+        "recommendation_cadence": "weekly",
+        "weekly_nudges_enabled": true
+      },
+      "selected_sources": [
+        {
+          "id": "confluence",
+          "name": "Confluence",
+          "category": "internal",
+          "integration_mode": "local_json",
+          "is_mocked": true,
+          "enabled_by_default": true,
+          "description": "Project documentation, standards, architecture notes, and runbooks.",
+          "capabilities": [
+            "profile_analysis",
+            "recommendation_generation",
+            "evidence_lookup",
+            "learning_resources"
+          ],
+          "status": "available",
+          "enabled": true
+        },
+        {
+          "id": "github",
+          "name": "GitHub PR Feedback",
+          "category": "internal",
+          "integration_mode": "local_json",
+          "is_mocked": true,
+          "enabled_by_default": true,
+          "description": "Pull request review patterns and implementation feedback.",
+          "capabilities": [
+            "profile_analysis",
+            "recommendation_generation",
+            "evidence_lookup"
+          ],
+          "status": "available",
+          "enabled": true
+        },
+        {
+          "id": "google_drive",
+          "name": "Google Drive",
+          "category": "internal",
+          "integration_mode": "local_json",
+          "is_mocked": true,
+          "enabled_by_default": true,
+          "description": "Learning material, best-practice documents, and mentoring notes.",
+          "capabilities": [
+            "recommendation_generation",
+            "evidence_lookup",
+            "learning_resources"
+          ],
+          "status": "available",
+          "enabled": true
+        },
+        {
+          "id": "coaching_notes",
+          "name": "Coaching Notes",
+          "category": "internal",
+          "integration_mode": "local_json",
+          "is_mocked": true,
+          "enabled_by_default": false,
+          "description": "Manager and mentor observations about growth opportunities.",
+          "capabilities": [
+            "profile_analysis",
+            "recommendation_generation",
+            "evidence_lookup"
+          ],
+          "status": "available",
+          "enabled": true
+        },
+        {
+          "id": "youtube",
+          "name": "YouTube",
+          "category": "external",
+          "integration_mode": "mcp_connector",
+          "is_mocked": false,
+          "enabled_by_default": true,
+          "description": "Video-based learning resources and talks.",
+          "capabilities": [
+            "learning_resources"
+          ],
+          "status": "available",
+          "enabled": false
+        },
+        {
+          "id": "google_search",
+          "name": "Google Search",
+          "category": "external",
+          "integration_mode": "mcp_connector",
+          "is_mocked": false,
+          "enabled_by_default": true,
+          "description": "Broad web search for topical learning resources.",
+          "capabilities": [
+            "learning_resources"
+          ],
+          "status": "available",
+          "enabled": false
+        },
+        {
+          "id": "google_scholar",
+          "name": "Google Scholar",
+          "category": "external",
+          "integration_mode": "mcp_connector",
+          "is_mocked": false,
+          "enabled_by_default": false,
+          "description": "Research papers and deeper technical references.",
+          "capabilities": [
+            "learning_resources"
+          ],
+          "status": "available",
+          "enabled": false
+        },
+        {
+          "id": "medium",
+          "name": "Medium",
+          "category": "external",
+          "integration_mode": "mcp_connector",
+          "is_mocked": false,
+          "enabled_by_default": false,
+          "description": "Long-form engineering articles and reflections.",
+          "capabilities": [
+            "learning_resources"
+          ],
+          "status": "available",
+          "enabled": false
+        },
+        {
+          "id": "official_docs",
+          "name": "Official Documentation",
+          "category": "external",
+          "integration_mode": "http_api",
+          "is_mocked": false,
+          "enabled_by_default": true,
+          "description": "Stable technical references and vendor documentation.",
+          "capabilities": [
+            "learning_resources"
+          ],
+          "status": "available",
+          "enabled": false
+        }
+      ],
+      "growth_plan": null,
+      "dashboard": null,
+      "skill_profile": {
+        "target_role": {
+          "title": "Medior ML Engineer",
+          "gap_skills": [
+            "System Design",
+            "Observability",
+            "Error Handling"
+          ],
+          "narrative": "The imported mock profile suggests a strong implementation foundation with the biggest remaining gaps in architectural reasoning, production visibility, and reliable failure handling."
+        },
+        "strengths": [
+          {
+            "id": "python",
+            "name": "Python",
+            "category": "software_engineering",
+            "level_percent": 88,
+            "band": "advanced",
+            "confidence": 0.92,
+            "priority": null,
+            "evidence": [
+              {
+                "source_id": "self_reported",
+                "source_category": "self_reported",
+                "title": "Resume and project history",
+                "summary": "Mock session data highlights Python as a consistently strong implementation skill.",
+                "link": null
+              },
+              {
+                "source_id": "github",
+                "source_category": "internal",
+                "title": "PR Feedback on Async Error Handling",
+                "summary": "Line-level review data shows fluent backend implementation patterns.",
+                "link": null
+              }
+            ]
+          },
+          {
+            "id": "machine_learning",
+            "name": "Machine Learning",
+            "category": "ml_engineering",
+            "level_percent": 82,
+            "band": "advanced",
+            "confidence": 0.86,
+            "priority": null,
+            "evidence": [
+              {
+                "source_id": "self_reported",
+                "source_category": "self_reported",
+                "title": "Resume and certifications",
+                "summary": "Mock session data references transformers, embeddings, MLflow, and multi-cloud ML experience.",
+                "link": null
+              }
+            ]
+          },
+          {
+            "id": "deployment",
+            "name": "Production Deployment",
+            "category": "reliability",
+            "level_percent": 75,
+            "band": "strong",
+            "confidence": 0.78,
+            "priority": null,
+            "evidence": [
+              {
+                "source_id": "confluence",
+                "source_category": "internal",
+                "title": "Helios Deployment Pattern Docs",
+                "summary": "Internal deployment notes reinforce prior exposure to rollout and production delivery patterns.",
+                "link": null
+              }
+            ]
+          },
+          {
+            "id": "api_design",
+            "name": "API Design",
+            "category": "backend_engineering",
+            "level_percent": 70,
+            "band": "strong",
+            "confidence": 0.79,
+            "priority": null,
+            "evidence": [
+              {
+                "source_id": "google_drive",
+                "source_category": "internal",
+                "title": "API Style Guide",
+                "summary": "Mock evidence and existing internal docs both point to good instincts for explicit API contracts.",
+                "link": null
+              }
+            ]
+          }
+        ],
+        "growth_areas": [
+          {
+            "id": "system_design",
+            "name": "System Design",
+            "category": "architecture",
+            "level_percent": 35,
+            "band": "emerging",
+            "confidence": 0.74,
+            "priority": "high",
+            "evidence": [
+              {
+                "source_id": "coaching_notes",
+                "source_category": "internal",
+                "title": "Coaching Note: Architectural Communication",
+                "summary": "Coaching feedback says boundary-framing and tradeoff articulation should improve.",
+                "link": null
+              },
+              {
+                "source_id": "confluence",
+                "source_category": "internal",
+                "title": "Architecture Review Template",
+                "summary": "Internal reference material supports more explicit design reasoning.",
+                "link": null
+              }
+            ]
+          },
+          {
+            "id": "observability",
+            "name": "Observability",
+            "category": "reliability",
+            "level_percent": 30,
+            "band": "emerging",
+            "confidence": 0.8,
+            "priority": "high",
+            "evidence": [
+              {
+                "source_id": "github",
+                "source_category": "internal",
+                "title": "PR Feedback on Missing Metrics",
+                "summary": "Review feedback called out missing metrics and limited production visibility.",
+                "link": null
+              },
+              {
+                "source_id": "coaching_notes",
+                "source_category": "internal",
+                "title": "Coaching Note: Reliability Growth",
+                "summary": "Mentor notes position observability as the next key growth step.",
+                "link": null
+              }
+            ]
+          },
+          {
+            "id": "error_handling",
+            "name": "Error Handling",
+            "category": "backend_engineering",
+            "level_percent": 40,
+            "band": "developing",
+            "confidence": 0.76,
+            "priority": "medium",
+            "evidence": [
+              {
+                "source_id": "github",
+                "source_category": "internal",
+                "title": "PR Feedback on Async Error Handling",
+                "summary": "Mock PR review data highlights inconsistent exception handling in async flows.",
+                "link": null
+              }
+            ]
+          },
+          {
+            "id": "git_collaboration",
+            "name": "Git & Collaboration",
+            "category": "delivery",
+            "level_percent": 38,
+            "band": "emerging",
+            "confidence": 0.68,
+            "priority": "medium",
+            "evidence": [
+              {
+                "source_id": "coaching_notes",
+                "source_category": "internal",
+                "title": "Coaching note - Sanne (Apr 10)",
+                "summary": "Mock coaching data emphasizes clearer communication of risks, rationale, and tradeoffs in team settings.",
+                "link": null
+              }
+            ]
+          }
+        ]
+      },
+      "tasks": {},
+      "task_theme_map": {}
+    }
+  },
+  "jobs": {}
 }

@@ -20,6 +20,13 @@ uv sync --group dev
 source .venv/bin/activate
 ```
 
+For local OpenAI-backed runs, define your API key in `backend/.env`:
+
+```dotenv
+OPENAI_API_KEY=your_key_here
+OPENAI_MODEL=gpt-4.1-mini
+```
+
 Install pre-commit hooks:
 
 ```commandline
