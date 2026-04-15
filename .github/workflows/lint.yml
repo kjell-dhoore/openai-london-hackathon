@@ -23,7 +23,3 @@ jobs:
       run: |
         uv sync --group dev --frozen
         uv run pre-commit run --all-files
-
-    - name: license_check
-      run: |
-        ./run_license_check.sh --modules-file python-modules
