@@ -5,17 +5,6 @@ import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
-  const proxy = {
-    "/v1": {
-      target: "http://localhost:8000",
-      changeOrigin: true,
-    },
-    "/health": {
-      target: "http://localhost:8000",
-      changeOrigin: true,
-    },
-  };
-
   return {
     server: {
       host: "::",
@@ -23,12 +12,10 @@ export default defineConfig(({ mode }) => {
       hmr: {
         overlay: false,
       },
-      proxy,
     },
     preview: {
       host: "::",
       port: 4173,
-      proxy,
     },
     plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
     resolve: {
