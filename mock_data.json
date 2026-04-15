@@ -123,6 +123,12 @@
           "level": 32,
           "evidence": "PR #57 review: 'should continue developing stronger componentization habits.' Hardcoded labels flagged as a maintenance risk.",
           "priority": "low"
+        },
+        {
+          "skill": "AI-Assisted Development Workflow",
+          "level": 25,
+          "evidence": "Coaching note - Eline (Apr 8): Kjell's development loop is suboptimal — manual iteration on boilerplate, slow feedback cycles, and underuse of AI coding tools. Recommended adopting Codex to accelerate prototyping and reduce context-switching overhead.",
+          "priority": "medium"
         }
       ]
     },
@@ -558,6 +564,54 @@
                     "type": "blog",
                     "url": "https://www.developing.dev/p/how-to-own-projects-end-to-end",
                     "duration": "12 min"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Developer Tooling & Workflow",
+          "description": "Improve your daily development loop by adopting AI-assisted coding tools to reduce manual iteration, speed up prototyping, and tighten feedback cycles.",
+          "progress_pct": 0,
+          "tasks": [
+            {
+              "id": "task_tool_001",
+              "title": "Earn the Codex Practitioner badge",
+              "xp": 150,
+              "duration": "3 hours",
+              "status": "upcoming",
+              "completed_at": null,
+              "skill_tags": ["AI-Assisted Development", "Developer Productivity", "Codex"],
+              "is_next_action": false,
+              "why": [
+                "Coaching note - Eline (Apr 8): your development loop is suboptimal — too much manual iteration on boilerplate and slow feedback cycles.",
+                "Eline recommended adopting Codex to accelerate prototyping and reduce context-switching overhead."
+              ],
+              "what_you_will_achieve": [
+                "Hands-on proficiency with Codex for code generation, refactoring, and review assistance.",
+                "The Codex Practitioner badge, demonstrating competence with AI-assisted development workflows."
+              ],
+              "resources": {
+                "internal": [
+                  {
+                    "label": "Coaching note - Eline (Apr 8)",
+                    "source": "Coaching Notes",
+                    "url": null
+                  }
+                ],
+                "external": [
+                  {
+                    "label": "OpenAI Codex documentation",
+                    "type": "docs",
+                    "url": "https://platform.openai.com/docs/codex",
+                    "duration": "30 min"
+                  },
+                  {
+                    "label": "Codex Practitioner badge requirements",
+                    "type": "docs",
+                    "url": "https://openai.com/codex/practitioner",
+                    "duration": null
                   }
                 ]
               }
