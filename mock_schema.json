@@ -1,0 +1,107 @@
+{
+    "session": {
+      "id": "string",
+      "created_at": "ISO8601",
+      "last_active_at": "ISO8601",
+      "onboarding_complete": "boolean",
+      "onboarding_completed_at": "ISO8601 | null",
+
+      "user": {
+        "id": "string",
+        "name": "string",
+        "email": "string",
+        "avatar_url": "string | null",
+        "age": "number",
+        "job_title": "string",
+        "team": "string",
+        "company": "string",
+        "start_date": "YYYY-MM-DD",
+        "target_role": {
+          "title": "string",
+          "gaps": ["string"]
+        },
+        "resume_path": "string | null",
+        "linkedin_url": "string | null"
+      },
+
+      "skills": {
+        "detected": ["string"],
+        "strengths": [
+          { "name": "string", "level": "0-100", "evidence": "string" }
+        ],
+        "growth_areas": [
+          { "name": "string", "level": "0-100", "evidence": "string", "priority": "high | medium | low" }
+        ]
+      },
+
+      "preferences": {
+        "learning_style": "hands-on | reading | visual | mixed",
+        "growth_focus": "career | personal | both",
+        "cognitive_approach": "practice | theory | blended",
+        "time_availability": "string",
+        "onboarding_quiz_answers": {}
+      },
+
+      "data_sources": {
+        "internal": {
+          "<source_key>": { "enabled": "boolean", "impact": "string" }
+        },
+        "external": {
+          "<source_key>": { "enabled": "boolean", "impact": "string" }
+        }
+      },
+
+      "gamification": {
+        "level": "number",
+        "total_xp": "number",
+        "xp_to_next_level": "number",
+        "xp_this_week": "number",
+        "day_streak": "number",
+        "tasks_completed": "number",
+        "focus_area": "string"
+      },
+
+      "growth_path": {
+        "title": "string",
+        "areas": [
+          {
+            "name": "string",
+            "description": "string",
+            "progress_pct": "0-100",
+            "tasks": [
+              {
+                "id": "string",
+                "title": "string",
+                "xp": "number",
+                "duration_minutes": "number",
+                "status": "completed | current | upcoming",
+                "completed_at": "ISO8601 | null",
+                "skill_tags": ["string"],
+                "is_next_action": "boolean",
+                "why": ["string"],
+                "what_you_will_achieve": ["string"],
+                "resources": {
+                  "internal": [
+                    { "label": "string", "source": "string", "url": "string | null" }
+                  ],
+                  "external": [
+                    { "label": "string", "type": "blog | video | docs | paper", "url": "string", "duration": "string | null" }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+
+      "activity_log": [
+        {
+          "timestamp": "ISO8601",
+          "event": "task_started | task_completed | xp_earned | streak_continued",
+          "task_id": "string | null",
+          "xp": "number | null",
+          "details": "string"
+        }
+      ]
+    }
+  }
