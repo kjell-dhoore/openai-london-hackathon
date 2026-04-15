@@ -27,28 +27,28 @@
       "skills": {
         "detected": ["string"],
         "strengths": [
-          { "name": "string", "level": "0-100", "evidence": "string" }
+          { "skill": "string", "level": "0-100", "evidence": "string" }
         ],
         "growth_areas": [
-          { "name": "string", "level": "0-100", "evidence": "string", "priority": "high | medium | low" }
+          { "skill": "string", "level": "0-100", "evidence": "string", "priority": "high | medium | low" }
         ]
       },
 
       "preferences": {
-        "learning_style": "hands-on | reading | visual | mixed",
-        "growth_focus": "career | personal | both",
-        "cognitive_approach": "practice | theory | blended",
+        "learning_style": "hands-on | reading | video | discussion",
+        "growth_focus": "career | mastery | exploration | delivery",
+        "cognitive_approach": "theory | practice | structured | exploratory",
         "time_availability": "string",
         "onboarding_quiz_answers": {}
       },
 
       "data_sources": {
-        "internal": {
-          "<source_key>": { "enabled": "boolean", "impact": "string" }
-        },
-        "external": {
-          "<source_key>": { "enabled": "boolean", "impact": "string" }
-        }
+        "internal": [
+          { "id": "string", "name": "string", "description": "string", "enabled": "boolean", "impact": "string" }
+        ],
+        "external": [
+          { "id": "string", "name": "string", "description": "string", "enabled": "boolean", "impact": "string" }
+        ]
       },
 
       "gamification": {
@@ -73,7 +73,7 @@
                 "id": "string",
                 "title": "string",
                 "xp": "number",
-                "duration_minutes": "number",
+                "duration": "string",
                 "status": "completed | current | upcoming",
                 "completed_at": "ISO8601 | null",
                 "skill_tags": ["string"],
