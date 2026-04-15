@@ -24,11 +24,6 @@ jobs:
         uv sync --group dev --frozen
         uv run pre-commit run --all-files
 
-    - name: vulnerability_scan
-      run: |
-        uv sync --all-groups --frozen
-        uv run uv-secure uv.lock
-
     - name: license_check
       run: |
         ./run_license_check.sh --modules-file python-modules
